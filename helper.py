@@ -169,15 +169,21 @@ def generate_openvpn_config(provision_identity, output_path, force=False):
     def read_cert_body(path):
         return subprocess.check_output(f"sed -ne '/BEGIN CERTIFICATE/,$ p' {path}", shell=True).decode()
 
+    def read_common():
+        return subprocess.check_output(f"cat /etc/openvpn/server/client-common.txt", shell=True).decode()
+
+    def read_ca():
+        return subprocess.check_output(f"cat /etc/openvpn/server/easy-rsa/pki/ca.crt", shell=True).decode()
+
     def read_tls_crypt(path):
         return subprocess.check_output(f"sed -ne '/BEGIN OpenVPN Static key/,$ p' {path}", shell=True).decode()
 
     # Compose .ovpn file
-    ca = read_file(f"{easyrsa_dir}/pki/ca.crt")
+    ca = read_ca()
     cert = read_cert_body(f"{easyrsa_dir}/pki/issued/{provision_identity}.crt")
     key = read_file(f"{easyrsa_dir}/pki/private/{provision_identity}.key")
     tls_crypt = read_tls_crypt(f"{openvpn_dir}/tc.key")
-    common_config = read_file(f"{openvpn_dir}/client-common.txt")
+    common_config = read_common()
 
     full_config = f"""{common_config}
 <ca>
