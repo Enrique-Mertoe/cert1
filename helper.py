@@ -113,9 +113,9 @@ def generate_openvpn_config(provision_identity, output_path):
 </key>
 {tls_crypt}
 """
-
+        path = f"{Config.VPN_CLIENT_DIR}/{provision_identity}.ovpn"
         # Write configuration to file
-        with open(output_path, 'w') as f:
+        with open(path, 'w') as f:
             f.write(config)
 
         # Also save a copy in the OpenVPN server client directory for easy access
