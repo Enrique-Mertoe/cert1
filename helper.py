@@ -170,10 +170,10 @@ def generate_openvpn_config(provision_identity, output_path, force=False):
         return subprocess.check_output(f"sed -ne '/BEGIN CERTIFICATE/,$ p' {path}", shell=True).decode()
 
     def read_common():
-        return subprocess.check_output(f"cat /etc/openvpn/server/client-common.txt", shell=True).decode()
+        return read_file("/etc/openvpn/server/client-common.txt")
 
     def read_ca():
-        return subprocess.check_output(f"cat /etc/openvpn/server/easy-rsa/pki/ca.crt", shell=True).decode()
+        return read_file("/etc/openvpn/server/easy-rsa/pki/ca.crt")
 
     def read_tls_crypt(path):
         return subprocess.check_output(f"sed -ne '/BEGIN OpenVPN Static key/,$ p' {path}", shell=True).decode()
