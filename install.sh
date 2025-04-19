@@ -178,7 +178,14 @@ if [ "$UPDATE_MODE" = true ]; then
         echo -e "\n${GREEN}Update completed successfully!${NC}"
         echo -e "${GREEN}Services have been rebuilt and restarted.${NC}"
         echo -e "${GREEN}The service is available at: http://localhost:8100${NC}"
-        echo -e "\n${YELLOW}Use ./manage.sh status to check the service status${NC}"
+
+        # Start services using manage.sh
+        echo -e "\n${YELLOW}Starting services with manage.sh...${NC}"
+        ./manage.sh start
+
+        # Show service status
+        echo -e "\n${YELLOW}Current service status:${NC}"
+        ./manage.sh status
     else
         echo -e "\n${RED}Failed to update services.${NC}"
         echo -e "${YELLOW}Check the logs with:${NC} $DOCKER_COMPOSE logs"
@@ -302,7 +309,7 @@ if [ $? -eq 0 ]; then
     echo -e "${GREEN}==============================================${NC}"
     echo -e "${GREEN}The service is available at: http://localhost:8100${NC}"
     echo -e "${GREEN}OpenVPN management interface on port 1194${NC}"
-    echo -e "${GREEN}Redis is running on port 6378${NC}"
+    echo -e "${GREEN}Redis is running on port 6379${NC}"
     echo -e "${GREEN}==============================================${NC}"
     echo -e "${YELLOW}To stop the service:${NC} $DOCKER_COMPOSE down"
     echo -e "${YELLOW}To view logs:${NC} $DOCKER_COMPOSE logs -f"
@@ -426,3 +433,11 @@ echo -e "  ${GREEN}sudo ./install.sh --update${NC}  # Update code without reinst
 echo -e "\n${YELLOW}Troubleshooting:${NC}"
 echo -e "  ${GREEN}./redis_test.py${NC}       # Test Redis connectivity"
 echo -e "  ${GREEN}docker ps${NC}             # Check container status"
+
+# Start services using manage.sh
+echo -e "\n${YELLOW}Starting services with manage.sh...${NC}"
+./manage.sh start
+
+# Show service status
+echo -e "\n${YELLOW}Current service status:${NC}"
+./manage.sh status

@@ -9,7 +9,7 @@ except ImportError:
     sys.exit(1)
 
 
-def test_redis_connection(host='localhost', port=6378):
+def test_redis_connection(host='localhost', port=6379):
     try:
         # Attempt to connect to Redis
         r = redis.Redis(host=host, port=port, db=0)
@@ -39,13 +39,13 @@ def test_redis_connection(host='localhost', port=6378):
 if __name__ == "__main__":
     # Allow command-line arguments to specify host and port
     host = sys.argv[1] if len(sys.argv) > 1 else 'localhost'
-    port = int(sys.argv[2]) if len(sys.argv) > 2 else 6378
+    port = int(sys.argv[2]) if len(sys.argv) > 2 else 6379
 
     success = test_redis_connection(host, port)
     if not success:
         print("\nTroubleshooting tips:")
         print("1. Make sure Redis is running")
-        print("2. Check if port 6378 is correctly mapped in docker-compose.yml")
+        print("2. Check if port 6379 is correctly mapped in docker-compose.yml")
         print("3. Ensure Redis is listening on the expected port")
         print("4. Verify there are no firewall rules blocking the connection")
         print("\nTo check Docker status:")
