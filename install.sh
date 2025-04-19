@@ -19,6 +19,10 @@ fi
 
 echo -e "${YELLOW}Checking system requirements...${NC}"
 
+# Install necessary system tools
+echo -e "${YELLOW}Installing required system packages...${NC}"
+apt-get update -qq && apt-get install -y -qq lsof curl
+
 # Check for Docker and Docker Compose
 if ! command -v docker &> /dev/null; then
     echo -e "${YELLOW}Docker not found. Installing Docker...${NC}"
@@ -33,13 +37,23 @@ fi
 # Check Docker Compose
 if ! command -v docker-compose &> /dev/null; then
     echo -e "${YELLOW}Docker Compose not found. Installing Docker Compose...${NC}"
-    
-    # Install Docker Compose v2 through the plugin system
-    mkdir -p /usr/local/lib/docker/cli-plugins
-    curl -SL https://github.com/docker/compose/releases/download/v2.20.3/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
-    chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
-    
+
+    # Install Docker Compose v2
+    apt-get install -y docker-compose-plugin
+
+    # Create symbolic link for docker-compose command
+    ln -sf /usr/libexec/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose
+    chmod +x /usr/local/bin/docker-compose
+
     echo -e "${GREEN}Docker Compose installed successfully${NC}"
+
+    # Verify docker-compose is working
+    docker-compose --version || {
+        echo -e "${YELLOW}Docker Compose plugin installed but command not found. Installing standalone version...${NC}"
+        curl -SL "https://github.com/docker/compose/releases/download/v2.20.3/docker-compose-linux-$(uname -m)" -o /usr/local/bin/docker-compose
+        chmod +x /usr/local/bin/docker-compose
+        echo -e "${GREEN}Docker Compose standalone version installed${NC}"
+    }
 else
     echo -e "${GREEN}Docker Compose is already installed${NC}"
 fi
@@ -50,14 +64,31 @@ mkdir -p ./templates
 mkdir -p ./static
 
 # Check if port 8100 is available
-if lsof -Pi :8100 -sTCP:LISTEN -t >/dev/null ; then
-    echo -e "${RED}Port 8100 is already in use. Please free up this port or modify docker-compose.yml to use a different port.${NC}"
-    exit 1
+if command -v lsof &> /dev/null; then
+    if lsof -Pi :8100 -sTCP:LISTEN -t >/dev/null ; then
+        echo -e "${RED}Port 8100 is already in use. Please free up this port or modify docker-compose.yml to use a different port.${NC}"
+        exit 1
+    fi
+else
+    echo -e "${YELLOW}lsof not available, skipping port check${NC}"
+fi
+
+# Add current user to docker group
+if [ -z "$SUDO_USER" ]; then
+    current_user=$(whoami)
+else
+    current_user=$SUDO_USER
+fi
+
+if [ "$current_user" != "root" ]; then
+    echo -e "${YELLOW}Adding user ${current_user} to docker group...${NC}"
+    usermod -aG docker $current_user
+    echo -e "${GREEN}User added to docker group. You may need to log out and back in for this to take effect.${NC}"
 fi
 
 # Start the services
 echo -e "${YELLOW}Starting the OpenVPN Provision Service...${NC}"
-docker-compose down
+docker-compose down 2>/dev/null || true
 docker-compose up -d
 
 # Check if services are running
@@ -113,6 +144,10 @@ EOF
 
 chmod +x manage.sh
 chmod +x redis_test.py
+
+# Install python-redis for the test script
+apt-get install -y python3-pip
+pip3 install redis
 
 echo -e "${GREEN}A management script has been created: ./manage.sh${NC}"
 echo -e "${YELLOW}Usage:${NC} ./manage.sh {start|stop|restart|status|logs}"
