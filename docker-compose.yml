@@ -4,7 +4,7 @@ services:
   web:
     build: .
     ports:
-      - "8000:8000"
+      - "8100:8100"
     environment:
       - FLASK_ENV=production
       - REDIS_URL=redis://redis:6379/0
