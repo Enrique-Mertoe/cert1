@@ -35,7 +35,7 @@ def generate_openvpn_config(provision_identity, output_path):
         os.makedirs(client_dir, exist_ok=True)
 
         # Read the CA certificate
-        ca_path = f"{easyrsa_dir}/ca.crt"
+        ca_path = f"{easyrsa_dir}/pki/ca.crt"
         try:
             with open(ca_path, 'r') as ca_file:
                 ca_cert = ca_file.read()
