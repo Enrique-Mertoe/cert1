@@ -9,13 +9,23 @@ NC='\033[0m' # No Color
 
 # Parse command line arguments
 UPDATE_MODE=false
+GIT_UPDATE_MODE=false
 HELP_MODE=false
+GIT_CONTINUE=false
 
 # Process command line arguments
 for arg in "$@"; do
     case $arg in
         --update|-u)
             UPDATE_MODE=true
+            shift
+            ;;
+        --git-update|-g)
+            GIT_UPDATE_MODE=true
+            shift
+            ;;
+        --continue)
+            GIT_CONTINUE=true
             shift
             ;;
         --help|-h)
@@ -38,11 +48,15 @@ if [ "$HELP_MODE" = true ]; then
     echo -e "${GREEN}==============================================${NC}"
     echo -e "\nUsage: $0 [OPTIONS]"
     echo -e "\nOptions:"
-    echo -e "  --update, -u    Update mode: only rebuild containers without reinstalling dependencies"
-    echo -e "  --help, -h      Show this help message"
+    echo -e "  --update, -u         Update mode: only rebuild containers without reinstalling dependencies"
+    echo -e "  --git-update, -g     Git update mode: pull latest code from GitHub with conflict resolution"
+    echo -e "  --continue           Continue a previous Git update after resolving conflicts"
+    echo -e "  --help, -h           Show this help message"
     echo -e "\nExamples:"
-    echo -e "  $0              Full installation"
-    echo -e "  $0 --update     Update code only (useful after git pull)"
+    echo -e "  $0                   Full installation"
+    echo -e "  $0 --update          Update code only (useful after local changes)"
+    echo -e "  $0 --git-update      Pull latest code from GitHub with conflict resolution"
+    echo -e "  $0 --continue        Continue Git update after resolving conflicts"
     exit 0
 fi
 
@@ -51,6 +65,10 @@ echo -e "${GREEN}==============================================${NC}"
 echo -e "${GREEN}     OpenVPN Provision Service Installer     ${NC}"
 if [ "$UPDATE_MODE" = true ]; then
     echo -e "${GREEN}              UPDATE MODE                    ${NC}"
+elif [ "$GIT_UPDATE_MODE" = true ]; then
+    echo -e "${GREEN}           GIT UPDATE MODE                   ${NC}"
+elif [ "$GIT_CONTINUE" = true ]; then
+    echo -e "${GREEN}      CONTINUE GIT UPDATE MODE               ${NC}"
 fi
 echo -e "${GREEN}==============================================${NC}"
 
@@ -58,6 +76,244 @@ echo -e "${GREEN}==============================================${NC}"
 if [ "$EUID" -ne 0 ]; then
   echo -e "${RED}Please run as root or with sudo${NC}"
   exit 1
+fi
+
+# Git update functions
+handle_git_update() {
+    echo -e "${YELLOW}Checking for Git repository...${NC}"
+    if [ ! -d .git ]; then
+        echo -e "${RED}This directory is not a Git repository.${NC}"
+        echo -e "${YELLOW}Cannot perform update from GitHub.${NC}"
+        return 1
+    fi
+
+    # Store current branch
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+    echo -e "${YELLOW}Current branch: ${CURRENT_BRANCH}${NC}"
+
+    # Check if there are uncommitted changes
+    if ! git diff-index --quiet HEAD --; then
+        echo -e "${RED}You have uncommitted changes in your repository.${NC}"
+        echo -e "${YELLOW}Options:${NC}"
+        echo -e "  1. Stash changes and proceed with update"
+        echo -e "  2. Continue anyway (might cause conflicts)"
+        echo -e "  3. Cancel update"
+        read -p "Choose an option (1-3): " GIT_OPTION
+
+        case $GIT_OPTION in
+            1)
+                echo -e "${YELLOW}Stashing changes...${NC}"
+                git stash
+                if [ $? -ne 0 ]; then
+                    echo -e "${RED}Failed to stash changes. Aborting update.${NC}"
+                    return 1
+                fi
+                echo -e "${GREEN}Changes stashed successfully.${NC}"
+                ;;
+            2)
+                echo -e "${YELLOW}Continuing with uncommitted changes...${NC}"
+                ;;
+            *)
+                echo -e "${YELLOW}Update cancelled.${NC}"
+                return 1
+                ;;
+        esac
+    fi
+
+    # Try to pull changes
+    echo -e "${YELLOW}Pulling latest code from GitHub...${NC}"
+    PULL_RESULT=$(git pull 2>&1)
+    PULL_STATUS=$?
+
+    if [ $PULL_STATUS -eq 0 ]; then
+        if [[ $PULL_RESULT == *"Already up to date"* ]]; then
+            echo -e "${GREEN}Repository is already up to date.${NC}"
+            read -p "Do you want to rebuild the services anyway? (y/n): " REBUILD_ANYWAY
+            if [[ ! $REBUILD_ANYWAY =~ ^[Yy]$ ]]; then
+                return 0
+            fi
+        else
+            echo -e "${GREEN}Successfully pulled latest changes.${NC}"
+        fi
+    else
+        # Handle merge conflicts or other issues
+        if [[ $PULL_RESULT == *"Merge conflict"* ]]; then
+            echo -e "${RED}Merge conflicts detected.${NC}"
+            echo -e "${YELLOW}Options:${NC}"
+            echo -e "  1. Abort the merge and reset to previous state"
+            echo -e "  2. Open conflicts in your default editor to resolve manually"
+            echo -e "  3. Accept all incoming changes (theirs)"
+            echo -e "  4. Keep all current changes (yours)"
+            read -p "Choose an option (1-4): " CONFLICT_OPTION
+
+            case $CONFLICT_OPTION in
+                1)
+                    echo -e "${YELLOW}Aborting merge...${NC}"
+                    git merge --abort
+                    echo -e "${GREEN}Merge aborted. Repository reset to previous state.${NC}"
+                    return 1
+                    ;;
+                2)
+                    echo -e "${YELLOW}Opening conflicts in editor...${NC}"
+                    EDITOR=${EDITOR:-vi}
+                    CONFLICTED_FILES=$(git diff --name-only --diff-filter=U)
+                    if [ -z "$CONFLICTED_FILES" ]; then
+                        echo -e "${RED}No conflict files found!${NC}"
+                        return 1
+                    fi
+
+                    for FILE in $CONFLICTED_FILES; do
+                        echo -e "${YELLOW}Opening $FILE...${NC}"
+                        $EDITOR "$FILE"
+                    done
+
+                    echo -e "${YELLOW}After resolving conflicts, mark them as resolved with 'git add <filename>'${NC}"
+                    echo -e "${YELLOW}Then continue the update with 'sudo ./install.sh --continue'${NC}"
+                    return 1
+                    ;;
+                3)
+                    echo -e "${YELLOW}Accepting all incoming changes...${NC}"
+                    CONFLICTED_FILES=$(git diff --name-only --diff-filter=U)
+                    if [ -z "$CONFLICTED_FILES" ]; then
+                        echo -e "${RED}No conflict files found!${NC}"
+                        return 1
+                    fi
+
+                    for FILE in $CONFLICTED_FILES; do
+                        git checkout --theirs -- "$FILE"
+                        git add "$FILE"
+                    done
+
+                    git commit -m "Resolved conflicts by accepting incoming changes"
+                    ;;
+                4)
+                    echo -e "${YELLOW}Keeping all current changes...${NC}"
+                    CONFLICTED_FILES=$(git diff --name-only --diff-filter=U)
+                    if [ -z "$CONFLICTED_FILES" ]; then
+                        echo -e "${RED}No conflict files found!${NC}"
+                        return 1
+                    fi
+
+                    for FILE in $CONFLICTED_FILES; do
+                        git checkout --ours -- "$FILE"
+                        git add "$FILE"
+                    done
+
+                    git commit -m "Resolved conflicts by keeping current changes"
+                    ;;
+                *)
+                    echo -e "${RED}Invalid option. Aborting update.${NC}"
+                    git merge --abort
+                    return 1
+                    ;;
+            esac
+        else
+            echo -e "${RED}Error pulling from GitHub:${NC}"
+            echo -e "$PULL_RESULT"
+            return 1
+        fi
+    fi
+
+    # If we had stashed changes, try to reapply them
+    if [ "$GIT_OPTION" = "1" ]; then
+        echo -e "${YELLOW}Reapplying stashed changes...${NC}"
+        git stash pop
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}Warning: Failed to reapply stashed changes.${NC}"
+            echo -e "${YELLOW}Your stashed changes are still in the stash list.${NC}"
+            echo -e "${YELLOW}Use 'git stash list' to see them and 'git stash apply' to try reapplying them later.${NC}"
+        else
+            echo -e "${GREEN}Stashed changes reapplied successfully.${NC}"
+        fi
+    fi
+
+    echo -e "${GREEN}Code update completed successfully.${NC}"
+    return 0
+}
+
+# Continue from previous git update
+handle_update_continue() {
+    echo -e "${YELLOW}Continuing previous Git update...${NC}"
+
+    # Check if there are still unresolved conflicts
+    if git diff --name-only --diff-filter=U | grep -q .; then
+        echo -e "${RED}You still have unresolved conflicts.${NC}"
+        echo -e "${YELLOW}Please resolve all conflicts and mark them with 'git add <filename>' before continuing.${NC}"
+        return 1
+    fi
+
+    # Check if there's an ongoing merge
+    if [ -f .git/MERGE_HEAD ]; then
+        echo -e "${YELLOW}Completing merge...${NC}"
+        git commit -m "Resolved merge conflicts"
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}Failed to complete the merge.${NC}"
+            return 1
+        fi
+        echo -e "${GREEN}Merge completed successfully.${NC}"
+    else
+        echo -e "${YELLOW}No ongoing merge detected.${NC}"
+    fi
+
+    echo -e "${GREEN}Update can now proceed.${NC}"
+    return 0
+}
+
+# Handle Git update mode
+if [ "$GIT_UPDATE_MODE" = true ]; then
+    # Determine which docker compose command to use
+    if command -v docker-compose &> /dev/null; then
+        DOCKER_COMPOSE="docker-compose"
+    elif command -v docker &> /dev/null && docker compose version &> /dev/null; then
+        DOCKER_COMPOSE="docker compose"
+    else
+        echo -e "${RED}Neither docker-compose nor docker compose is available.${NC}"
+        echo -e "${RED}Please run the installer without any flags first to set up Docker Compose.${NC}"
+        exit 1
+    fi
+
+    echo -e "${YELLOW}Updating from GitHub and rebuilding services...${NC}"
+    if handle_git_update; then
+        echo -e "${YELLOW}Rebuilding and restarting services...${NC}"
+        $DOCKER_COMPOSE down
+        $DOCKER_COMPOSE build --no-cache
+        $DOCKER_COMPOSE up -d
+
+        # Show service status
+        echo -e "\n${YELLOW}Current service status:${NC}"
+        $DOCKER_COMPOSE ps
+
+        echo -e "\n${GREEN}Git update completed successfully!${NC}"
+    fi
+    exit 0
+fi
+
+# Handle continue mode
+if [ "$GIT_CONTINUE" = true ]; then
+    # Determine which docker compose command to use
+    if command -v docker-compose &> /dev/null; then
+        DOCKER_COMPOSE="docker-compose"
+    elif command -v docker &> /dev/null && docker compose version &> /dev/null; then
+        DOCKER_COMPOSE="docker compose"
+    else
+        echo -e "${RED}Neither docker-compose nor docker compose is available.${NC}"
+        echo -e "${RED}Please run the installer without any flags first to set up Docker Compose.${NC}"
+        exit 1
+    fi
+
+    if handle_update_continue; then
+        echo -e "${YELLOW}Rebuilding and restarting services...${NC}"
+        $DOCKER_COMPOSE down
+        $DOCKER_COMPOSE build --no-cache
+        $DOCKER_COMPOSE up -d
+
+        # Show service status
+        echo -e "\n${YELLOW}Current service status:${NC}"
+        $DOCKER_COMPOSE ps
+
+        echo -e "\n${GREEN}Git update completed successfully!${NC}"
+    fi
+    exit 0
 fi
 
 # Function to check for existing services and report without prompting
@@ -181,6 +437,8 @@ if [ "$UPDATE_MODE" = true ]; then
 
         # Start services using manage.sh
         echo -e "\n${YELLOW}Starting services with manage.sh...${NC}"
+        chmod +x ./manage.sh
+        chmod +x ./redis_test.py
         ./manage.sh start
 
         # Show service status
@@ -357,6 +615,13 @@ case "$1" in
         $DOCKER_COMPOSE build --no-cache
         $DOCKER_COMPOSE up -d
         ;;
+    update)
+        echo -e "${YELLOW}Pulling latest code from GitHub, handling conflicts, and rebuilding...${NC}"
+        $DOCKER_COMPOSE down
+        git pull
+        $DOCKER_COMPOSE build --no-cache
+        $DOCKER_COMPOSE up -d
+        ;;
     status)
         echo -e "${YELLOW}Service status:${NC}"
         $DOCKER_COMPOSE ps
@@ -378,7 +643,7 @@ case "$1" in
         fi
         ;;
     *)
-        echo -e "${YELLOW}Usage:${NC} ./manage.sh {start|stop|restart|rebuild|status|logs|clean}"
+        echo -e "${YELLOW}Usage:${NC} ./manage.sh {start|stop|restart|rebuild|update|status|logs|clean}"
         exit 1
 esac
 EOF
@@ -428,14 +693,18 @@ echo -e "  ${GREEN}./manage.sh rebuild${NC}   # Rebuild containers with latest c
 echo -e "  ${GREEN}./manage.sh status${NC}    # Check service status"
 echo -e "  ${GREEN}./manage.sh logs${NC}      # View logs"
 echo -e "  ${GREEN}./manage.sh clean${NC}     # Remove all containers, volumes and data"
-echo -e "\n${YELLOW}For quick updates after code changes:${NC}"
-echo -e "  ${GREEN}sudo ./install.sh --update${NC}  # Update code without reinstalling dependencies"
+echo -e "\n${YELLOW}For quick updates:${NC}"
+echo -e "  ${GREEN}sudo ./install.sh --update${NC}      # Update code without reinstalling dependencies"
+echo -e "  ${GREEN}sudo ./install.sh --git-update${NC}  # Pull latest code from GitHub with conflict resolution"
+echo -e "  ${GREEN}sudo ./install.sh --continue${NC}    # Continue update after resolving Git conflicts"
 echo -e "\n${YELLOW}Troubleshooting:${NC}"
 echo -e "  ${GREEN}./redis_test.py${NC}       # Test Redis connectivity"
 echo -e "  ${GREEN}docker ps${NC}             # Check container status"
 
 # Start services using manage.sh
 echo -e "\n${YELLOW}Starting services with manage.sh...${NC}"
+chmod +x ./manage.sh
+chmod +x ./redis_test.py
 ./manage.sh start
 
 # Show service status
