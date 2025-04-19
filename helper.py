@@ -79,28 +79,28 @@ def generate_openvpn_config(provision_identity, output_path):
 </tls-crypt>"""
 
         # Try to use the common template if it exists
-        common_config_path = f"{openvpn_dir}/client-common.txt"
-        if os.path.exists(common_config_path):
-            with open(common_config_path, 'r') as common_file:
-                common_config = common_file.read()
-        else:
-            # Fallback to hardcoded template if client-common.txt doesn't exist
-            common_config = f"""client
-dev tun
-proto {Config.VPN_PROTO or 'udp'}
-remote {Config.VPN_HOST} {Config.VPN_PORT}
-resolv-retry infinite
-nobind
-persist-key
-persist-tun
-remote-cert-tls server
-auth SHA512
-cipher AES-256-GCM
-ignore-unknown-option block-outside-dns
-block-outside-dns
-verb 3"""
-
-        # Assemble the complete config
+        common_config_path = f"/etc/openvpn/server/client-common.txt"
+        # if os.path.exists(common_config_path):
+        with open(common_config_path, 'r') as common_file:
+            common_config = common_file.read()
+#         else:
+#             # Fallback to hardcoded template if client-common.txt doesn't exist
+#             common_config = f"""client
+# dev tun
+# proto {Config.VPN_PROTO or 'udp'}
+# remote {Config.VPN_HOST} {Config.VPN_PORT}
+# resolv-retry infinite
+# nobind
+# persist-key
+# persist-tun
+# remote-cert-tls server
+# auth SHA512
+# cipher AES-256-GCM
+# ignore-unknown-option block-outside-dns
+# block-outside-dns
+# verb 3"""
+#
+#         # Assemble the complete config
         config = f"""{common_config}
 <ca>
 {ca_cert}
