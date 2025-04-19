@@ -18,6 +18,7 @@ def generate_openvpn_config(provision_identity, output_path):
                     f"EasyRSA directory not found at either /etc/openvpn/server/easy-rsa or /etc/openvpn/easy-rsa")
 
         os.chdir(easyrsa_dir)
+        print(f"dir-------------------- {easyrsa_dir}.........\n")
 
         # Generate client certificate
         subprocess.run([
