@@ -7,9 +7,51 @@ RED='\033[0;31m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Parse command line arguments
+UPDATE_MODE=false
+HELP_MODE=false
+
+# Process command line arguments
+for arg in "$@"; do
+    case $arg in
+        --update|-u)
+            UPDATE_MODE=true
+            shift
+            ;;
+        --help|-h)
+            HELP_MODE=true
+            shift
+            ;;
+        *)
+            # Unknown option
+            echo -e "${RED}Unknown option: $arg${NC}"
+            HELP_MODE=true
+            shift
+            ;;
+    esac
+done
+
+# Show help information
+if [ "$HELP_MODE" = true ]; then
+    echo -e "${GREEN}==============================================${NC}"
+    echo -e "${GREEN}     OpenVPN Provision Service Installer     ${NC}"
+    echo -e "${GREEN}==============================================${NC}"
+    echo -e "\nUsage: $0 [OPTIONS]"
+    echo -e "\nOptions:"
+    echo -e "  --update, -u    Update mode: only rebuild containers without reinstalling dependencies"
+    echo -e "  --help, -h      Show this help message"
+    echo -e "\nExamples:"
+    echo -e "  $0              Full installation"
+    echo -e "  $0 --update     Update code only (useful after git pull)"
+    exit 0
+fi
+
 # Print header
 echo -e "${GREEN}==============================================${NC}"
 echo -e "${GREEN}     OpenVPN Provision Service Installer     ${NC}"
+if [ "$UPDATE_MODE" = true ]; then
+    echo -e "${GREEN}              UPDATE MODE                    ${NC}"
+fi
 echo -e "${GREEN}==============================================${NC}"
 
 # Check if running with sudo/root
@@ -18,45 +60,22 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-# Function to check and stop existing services
-check_and_stop_services() {
+# Function to check for existing services and report without prompting
+check_existing_services() {
     echo -e "\n${YELLOW}Checking for existing services...${NC}"
 
     # Check if containers with our service names exist
     if docker ps -a | grep -E 'web|redis|celery_worker|openvpn' > /dev/null; then
-        echo -e "${RED}Existing Docker containers found that may be related to this project:${NC}"
+        echo -e "${RED}Existing Docker containers found that will be stopped and removed:${NC}"
         docker ps -a | grep -E 'web|redis|celery_worker|openvpn'
-
-        echo -e "\n${RED}WARNING: Continuing will stop and remove these containers!${NC}"
-        read -p "Are you sure you want to continue? (y/n): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            echo -e "${YELLOW}Installation cancelled.${NC}"
-            exit 1
-        fi
-
-        echo -e "${YELLOW}Stopping and removing existing containers...${NC}"
-        docker ps -a -q --filter name=web --filter name=redis --filter name=celery_worker --filter name=openvpn | xargs -r docker stop
-        docker ps -a -q --filter name=web --filter name=redis --filter name=celery_worker --filter name=openvpn | xargs -r docker rm
     else
         echo -e "${GREEN}No existing containers found that match this project.${NC}"
     fi
 
     # Check for existing Docker volumes
     if docker volume ls | grep -E 'openvpn_client|hotspot_templates|openvpn_easyrsa' > /dev/null; then
-        echo -e "${RED}Existing Docker volumes found that may be related to this project:${NC}"
+        echo -e "${RED}Existing Docker volumes found that will be removed:${NC}"
         docker volume ls | grep -E 'openvpn_client|hotspot_templates|openvpn_easyrsa'
-
-        echo -e "\n${RED}WARNING: Continuing will remove these volumes and ALL DATA stored in them!${NC}"
-        read -p "Are you sure you want to continue? (y/n): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            echo -e "${YELLOW}Installation cancelled.${NC}"
-            exit 1
-        fi
-
-        echo -e "${YELLOW}Removing existing volumes...${NC}"
-        docker volume rm $(docker volume ls -q --filter name=openvpn_client --filter name=hotspot_templates --filter name=openvpn_easyrsa) 2>/dev/null || true
     else
         echo -e "${GREEN}No existing volumes found that match this project.${NC}"
     fi
@@ -66,27 +85,37 @@ check_and_stop_services() {
         if lsof -Pi :8100 -sTCP:LISTEN > /dev/null; then
             echo -e "${RED}Port 8100 is already in use by the following process:${NC}"
             lsof -Pi :8100 -sTCP:LISTEN
+            echo -e "${RED}This process will be stopped.${NC}"
+        fi
+    fi
+}
 
-            echo -e "\n${RED}WARNING: Continuing will attempt to stop the process using port 8100!${NC}"
-            read -p "Are you sure you want to continue? (y/n): " -n 1 -r
-            echo
-            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-                echo -e "${YELLOW}Installation cancelled.${NC}"
-                exit 1
-            fi
+# Function to stop existing services and clean up resources
+clean_existing_services() {
+    echo -e "\n${YELLOW}Cleaning up existing services...${NC}"
 
-            echo -e "${YELLOW}Attempting to free port 8100...${NC}"
+    # Stop and remove containers
+    echo -e "${YELLOW}Stopping and removing any existing containers...${NC}"
+    docker ps -a -q --filter name=web --filter name=redis --filter name=celery_worker --filter name=openvpn | xargs -r docker stop 2>/dev/null || true
+    docker ps -a -q --filter name=web --filter name=redis --filter name=celery_worker --filter name=openvpn | xargs -r docker rm 2>/dev/null || true
+
+    # Remove volumes if not in update mode
+    if [ "$UPDATE_MODE" = false ]; then
+        echo -e "${YELLOW}Removing any existing volumes...${NC}"
+        docker volume ls -q --filter name=openvpn_client --filter name=hotspot_templates --filter name=openvpn_easyrsa | xargs -r docker volume rm 2>/dev/null || true
+    else
+        echo -e "${GREEN}Update mode: Preserving existing volumes and data${NC}"
+    fi
+
+    # Free port 8100 if needed
+    if command -v lsof &> /dev/null; then
+        if lsof -Pi :8100 -sTCP:LISTEN > /dev/null; then
+            echo -e "${YELLOW}Freeing port 8100...${NC}"
             PID=$(lsof -Pi :8100 -sTCP:LISTEN -t)
             if [ ! -z "$PID" ]; then
                 echo -e "${YELLOW}Stopping process with PID $PID...${NC}"
-                kill -15 $PID 2>/dev/null || true
+                kill -15 $PID 2>/dev/null || kill -9 $PID 2>/dev/null || true
                 sleep 2
-                # Check if it's still running and force kill if needed
-                if lsof -Pi :8100 -sTCP:LISTEN > /dev/null; then
-                    echo -e "${YELLOW}Process still running, attempting force kill...${NC}"
-                    kill -9 $PID 2>/dev/null || true
-                    sleep 1
-                fi
             fi
 
             # Final check
@@ -100,7 +129,67 @@ check_and_stop_services() {
     fi
 }
 
-# Ask for confirmation before proceeding
+if [ "$UPDATE_MODE" = true ]; then
+    # Update mode - simplified confirmation and process
+    echo -e "\n${BLUE}===== UPDATE MODE =====${NC}"
+    echo -e "${YELLOW}This will:${NC}"
+    echo -e "  1. ${YELLOW}Stop existing containers${NC}"
+    echo -e "  2. ${GREEN}Preserve existing volumes and data${NC}"
+    echo -e "  3. ${YELLOW}Rebuild containers with the latest code${NC}"
+    echo -e "${BLUE}======================${NC}"
+
+    # Check for existing containers only
+    if docker ps -a | grep -E 'web|redis|celery_worker|openvpn' > /dev/null; then
+        echo -e "${YELLOW}Existing Docker containers found that will be stopped and rebuilt:${NC}"
+        docker ps -a | grep -E 'web|redis|celery_worker|openvpn'
+    else
+        echo -e "${GREEN}No existing containers found that match this project.${NC}"
+    fi
+
+    read -p "Continue with the update? (yes/no): " CONFIRM
+
+    if [[ ! "$CONFIRM" =~ ^[Yy][Ee][Ss]$ ]]; then
+        echo -e "${YELLOW}Update cancelled.${NC}"
+        exit 1
+    fi
+
+    # Stop containers but preserve volumes
+    echo -e "${YELLOW}Stopping existing containers...${NC}"
+    docker ps -a -q --filter name=web --filter name=redis --filter name=celery_worker --filter name=openvpn | xargs -r docker stop 2>/dev/null || true
+    docker ps -a -q --filter name=web --filter name=redis --filter name=celery_worker --filter name=openvpn | xargs -r docker rm 2>/dev/null || true
+
+    # Determine which docker compose command to use
+    if command -v docker-compose &> /dev/null; then
+        DOCKER_COMPOSE="docker-compose"
+    elif command -v docker &> /dev/null && docker compose version &> /dev/null; then
+        DOCKER_COMPOSE="docker compose"
+    else
+        echo -e "${RED}Neither docker-compose nor docker compose is available.${NC}"
+        echo -e "${RED}Please run the installer without the update flag first.${NC}"
+        exit 1
+    fi
+
+    # Build and start the services
+    echo -e "${YELLOW}Rebuilding containers with latest code...${NC}"
+    $DOCKER_COMPOSE build --no-cache
+    $DOCKER_COMPOSE up -d
+
+    if [ $? -eq 0 ]; then
+        echo -e "\n${GREEN}Update completed successfully!${NC}"
+        echo -e "${GREEN}Services have been rebuilt and restarted.${NC}"
+        echo -e "${GREEN}The service is available at: http://localhost:8100${NC}"
+        echo -e "\n${YELLOW}Use ./manage.sh status to check the service status${NC}"
+    else
+        echo -e "\n${RED}Failed to update services.${NC}"
+        echo -e "${YELLOW}Check the logs with:${NC} $DOCKER_COMPOSE logs"
+        exit 1
+    fi
+
+    exit 0
+fi
+
+# Full installation mode from here
+# Ask for a single confirmation before proceeding
 echo -e "\n${BLUE}===== IMPORTANT NOTICE =====${NC}"
 echo -e "${RED}This installation script will:${NC}"
 echo -e "  1. ${RED}Stop and remove any existing Docker containers related to this project${NC}"
@@ -108,8 +197,13 @@ echo -e "  2. ${RED}Remove any existing Docker volumes related to this project (
 echo -e "  3. ${RED}Free port 8100 if it's in use (will stop the using process)${NC}"
 echo -e "  4. ${RED}Install or reconfigure Docker and Docker Compose${NC}"
 echo -e "  5. ${RED}Create new configurations and start services${NC}"
-echo -e "${BLUE}===========================${NC}\n"
+echo -e "${BLUE}===========================${NC}"
 
+# Check and show what will be affected
+check_existing_services
+
+echo -e "\n${RED}WARNING: All the above components will be affected without further confirmation.${NC}"
+echo -e "${YELLOW}TIP: Use --update flag for a lighter update after code changes (preserves data).${NC}"
 read -p "Do you want to proceed with the installation? (yes/no): " CONFIRM
 
 if [[ ! "$CONFIRM" =~ ^[Yy][Ee][Ss]$ ]]; then
@@ -117,8 +211,8 @@ if [[ ! "$CONFIRM" =~ ^[Yy][Ee][Ss]$ ]]; then
     exit 1
 fi
 
-# Check and stop existing services
-check_and_stop_services
+# Clean up existing services without further prompts
+clean_existing_services
 
 echo -e "${YELLOW}Checking system requirements...${NC}"
 
@@ -250,6 +344,12 @@ case "$1" in
         $DOCKER_COMPOSE down
         $DOCKER_COMPOSE up -d
         ;;
+    rebuild)
+        echo -e "${YELLOW}Rebuilding and restarting services (preserves data)...${NC}"
+        $DOCKER_COMPOSE down
+        $DOCKER_COMPOSE build --no-cache
+        $DOCKER_COMPOSE up -d
+        ;;
     status)
         echo -e "${YELLOW}Service status:${NC}"
         $DOCKER_COMPOSE ps
@@ -271,7 +371,7 @@ case "$1" in
         fi
         ;;
     *)
-        echo -e "${YELLOW}Usage:${NC} ./manage.sh {start|stop|restart|status|logs|clean}"
+        echo -e "${YELLOW}Usage:${NC} ./manage.sh {start|stop|restart|rebuild|status|logs|clean}"
         exit 1
 esac
 EOF
@@ -317,9 +417,12 @@ echo -e "${YELLOW}Management commands:${NC}"
 echo -e "  ${GREEN}./manage.sh start${NC}     # Start services"
 echo -e "  ${GREEN}./manage.sh stop${NC}      # Stop services"
 echo -e "  ${GREEN}./manage.sh restart${NC}   # Restart services"
+echo -e "  ${GREEN}./manage.sh rebuild${NC}   # Rebuild containers with latest code (keeps data)"
 echo -e "  ${GREEN}./manage.sh status${NC}    # Check service status"
 echo -e "  ${GREEN}./manage.sh logs${NC}      # View logs"
 echo -e "  ${GREEN}./manage.sh clean${NC}     # Remove all containers, volumes and data"
+echo -e "\n${YELLOW}For quick updates after code changes:${NC}"
+echo -e "  ${GREEN}sudo ./install.sh --update${NC}  # Update code without reinstalling dependencies"
 echo -e "\n${YELLOW}Troubleshooting:${NC}"
 echo -e "  ${GREEN}./redis_test.py${NC}       # Test Redis connectivity"
 echo -e "  ${GREEN}docker ps${NC}             # Check container status"
