@@ -61,6 +61,7 @@ def mtk_create_new_provision(provision_identity):
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         # REQUEST_COUNT.labels(method='POST', endpoint='/create_provision', status='500').inc()
+        print(e)
         return jsonify({"error": "Internal server error"}), 500
 
 
