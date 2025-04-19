@@ -31,12 +31,13 @@ RUN mkdir -p /etc/openvpn/easy-rsa && \
 # Create non-root user and set permissions
 RUN useradd -m -u 1000 appuser && \
     mkdir -p /app/static /app/templates /app/prometheus \
-    /etc/openvpn/client /var/www/templates && \
-    chown -R appuser:appuser /app /etc/openvpn/client /var/www/templates && \
+    /etc/openvpn/server/client /etc/openvpn/client /var/www/templates && \
+    ln -sf /etc/openvpn/server /etc/openvpn/server && \
+    chown -R appuser:appuser /app /etc/openvpn/client /etc/openvpn/server/client /var/www/templates && \
     chown -R appuser:appuser /etc/openvpn && \
     chmod -R 777 /etc/openvpn/easy-rsa/pki && \
     chmod -R 777 /etc/openvpn/easy-rsa && \
-    chmod -R 755 /etc/openvpn/client
+    chmod -R 755 /etc/openvpn/client /etc/openvpn/server/client
 
 # Copy requirements first to leverage Docker cache
 COPY requirements.txt .

@@ -9,6 +9,7 @@ class Config:
     # OpenVPN configuration
     VPN_HOST = os.getenv('VPN_HOST', '34.45.7.160')
     VPN_PORT = int(os.getenv('VPN_PORT', 1194))
+    VPN_PROTO = os.getenv('VPN_PROTO', 'udp')  # UDP is recommended for better performance
     VPN_CLIENT_DIR = os.getenv('VPN_CLIENT_DIR', '/etc/openvpn/client')
 
     # Hotspot configuration
