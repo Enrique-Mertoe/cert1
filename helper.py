@@ -21,7 +21,7 @@ def generate_openvpn_config(provision_identity, output_path):
 
         # Generate client certificate
         subprocess.run([
-            './easyrsa', '--batch', '--days=3650', 'build-client-full', provision_identity, 'nopass'
+            f'{easyrsa_dir}/easyrsa', '--batch', '--days=3650', 'build-client-full', provision_identity, 'nopass'
         ], check=True)
 
         # Define base directory for OpenVPN
