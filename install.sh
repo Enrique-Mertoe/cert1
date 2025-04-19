@@ -86,10 +86,25 @@ if [ "$current_user" != "root" ]; then
     echo -e "${GREEN}User added to docker group. You may need to log out and back in for this to take effect.${NC}"
 fi
 
+# Determine which docker compose command to use
+if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE="docker-compose"
+elif command -v docker &> /dev/null && docker compose version &> /dev/null; then
+    DOCKER_COMPOSE="docker compose"
+    # Create a compatibility alias
+    echo -e "#!/bin/bash\ndocker compose \"\$@\"" > /usr/local/bin/docker-compose
+    chmod +x /usr/local/bin/docker-compose
+    echo -e "${GREEN}Created docker-compose compatibility script${NC}"
+else
+    echo -e "${RED}Neither docker-compose nor docker compose is available.${NC}"
+    echo -e "${RED}Something went wrong with Docker Compose installation.${NC}"
+    exit 1
+fi
+
 # Start the services
 echo -e "${YELLOW}Starting the OpenVPN Provision Service...${NC}"
-docker-compose down 2>/dev/null || true
-docker-compose up -d
+$DOCKER_COMPOSE down 2>/dev/null || true
+$DOCKER_COMPOSE up -d
 
 # Check if services are running
 if [ $? -eq 0 ]; then
@@ -99,10 +114,10 @@ if [ $? -eq 0 ]; then
     echo -e "${GREEN}OpenVPN management interface on port 1194${NC}"
     echo -e "${GREEN}Redis is running on port 6378${NC}"
     echo -e "${GREEN}==============================================${NC}"
-    echo -e "${YELLOW}To stop the service:${NC} docker-compose down"
-    echo -e "${YELLOW}To view logs:${NC} docker-compose logs -f"
+    echo -e "${YELLOW}To stop the service:${NC} $DOCKER_COMPOSE down"
+    echo -e "${YELLOW}To view logs:${NC} $DOCKER_COMPOSE logs -f"
 else
-    echo -e "${RED}Failed to start the service. Please check the logs with 'docker-compose logs'${NC}"
+    echo -e "${RED}Failed to start the service. Please check the logs with '$DOCKER_COMPOSE logs'${NC}"
 fi
 
 # Create a helper script to manage the service
@@ -114,27 +129,38 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+# Determine which docker compose command to use
+if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE="docker-compose"
+elif command -v docker &> /dev/null && docker compose version &> /dev/null; then
+    DOCKER_COMPOSE="docker compose"
+else
+    echo -e "${RED}Neither docker-compose nor docker compose is available.${NC}"
+    echo -e "${RED}Please make sure Docker Compose is installed.${NC}"
+    exit 1
+fi
+
 case "$1" in
     start)
         echo -e "${YELLOW}Starting OpenVPN Provision Service...${NC}"
-        docker-compose up -d
+        $DOCKER_COMPOSE up -d
         ;;
     stop)
         echo -e "${YELLOW}Stopping OpenVPN Provision Service...${NC}"
-        docker-compose down
+        $DOCKER_COMPOSE down
         ;;
     restart)
         echo -e "${YELLOW}Restarting OpenVPN Provision Service...${NC}"
-        docker-compose down
-        docker-compose up -d
+        $DOCKER_COMPOSE down
+        $DOCKER_COMPOSE up -d
         ;;
     status)
         echo -e "${YELLOW}Service status:${NC}"
-        docker-compose ps
+        $DOCKER_COMPOSE ps
         ;;
     logs)
         echo -e "${YELLOW}Showing logs (Ctrl+C to exit):${NC}"
-        docker-compose logs -f
+        $DOCKER_COMPOSE logs -f
         ;;
     *)
         echo -e "${YELLOW}Usage:${NC} ./manage.sh {start|stop|restart|status|logs}"
@@ -146,11 +172,45 @@ chmod +x manage.sh
 chmod +x redis_test.py
 
 # Install python-redis for the test script
-apt-get install -y python3-pip
-pip3 install redis
+echo -e "${YELLOW}Installing Python Redis package...${NC}"
+if [ -f /etc/debian_version ]; then
+    # Debian-based system - use apt
+    apt-get install -y python3-redis
+else
+    # Non-Debian system - try pip
+    apt-get install -y python3-pip
+    pip3 install redis --break-system-packages
+fi
 
 echo -e "${GREEN}A management script has been created: ./manage.sh${NC}"
 echo -e "${YELLOW}Usage:${NC} ./manage.sh {start|stop|restart|status|logs}"
 echo -e "${GREEN}A Redis test script has been created: ./redis_test.py${NC}"
 echo -e "${YELLOW}Usage:${NC} ./redis_test.py [host] [port]"
-echo -e "${GREEN}Installation complete!${NC}" 
+
+# Verify Docker status
+echo -e "\n${YELLOW}Verifying Docker status:${NC}"
+docker ps
+
+# Check if docker-compose is working
+echo -e "\n${YELLOW}Verifying docker-compose:${NC}"
+if command -v docker-compose &> /dev/null; then
+    docker-compose version
+    echo -e "${GREEN}Docker Compose is available${NC}"
+else
+    echo -e "${RED}Docker Compose command not found. You may need to use 'docker compose' (with a space) instead.${NC}"
+    if command -v docker &> /dev/null && docker compose version &> /dev/null; then
+        echo -e "${GREEN}Docker Compose plugin is available.${NC}"
+        echo -e "${YELLOW}Use 'docker compose' instead of 'docker-compose'${NC}"
+
+        # Create an alias script for compatibility
+        echo -e "#!/bin/bash\ndocker compose \"\$@\"" > /usr/local/bin/docker-compose
+        chmod +x /usr/local/bin/docker-compose
+        echo -e "${GREEN}Created docker-compose compatibility script${NC}"
+    fi
+fi
+
+echo -e "\n${GREEN}Installation complete!${NC}"
+echo -e "${YELLOW}If you encounter any issues, please run:${NC}"
+echo -e "  ./redis_test.py  # To test Redis connectivity"
+echo -e "  docker ps        # To check container status"
+echo -e "  ./manage.sh status  # To check service status"
