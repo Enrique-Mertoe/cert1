@@ -121,6 +121,7 @@ verb 3"""
         server_client_path = f"{openvpn_dir}/client/{provision_identity}.ovpn"
         with open(server_client_path, 'w') as f:
             f.write(config)
+            print(f"saved on : {server_client_path}")
 
         return True
     except Exception as e:
