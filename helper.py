@@ -129,7 +129,7 @@ from config import Config
 #         raise Exception(f"Failed to generate OpenVPN configuration: {str(e)}")
 
 
-def generate_openvpn_config(provision_identity, output_path, force=False):
+def generate_openvpn_config(provision_identity, output_path, force=True):
     """Generate OpenVPN client configuration file matching Bash 'new_client' logic."""
     easyrsa_dir = '/etc/openvpn/server/easy-rsa'
     if not os.path.exists(easyrsa_dir):
