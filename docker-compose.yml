@@ -7,7 +7,7 @@ services:
       - "8100:8100"
     environment:
       - FLASK_ENV=production
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=redis://redis:6378/0
       - VPN_HOST=openvpn
       - VPN_PORT=1194
       
@@ -35,7 +35,7 @@ services:
     user: "1000:1000"
     environment:
       - FLASK_ENV=production
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=redis://redis:6378/0
       - VPN_HOST=openvpn
       - VPN_PORT=1194
       - VPN_CLIENT_DIR=/etc/openvpn/client
