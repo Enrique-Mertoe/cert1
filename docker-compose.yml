@@ -25,7 +25,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6378:6389"
+      - "6378:6378"
     networks:
       - app-network
 
