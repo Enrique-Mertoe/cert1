@@ -87,7 +87,7 @@ def generate_openvpn_config(provision_identity, output_path):
             # Fallback to hardcoded template if client-common.txt doesn't exist
             common_config = f"""client
 dev tun__
-proto {Config.VPN_PROTO or 'udp'}
+proto {Config.VPN_PROTO or 'tcp'}
 remote {Config.VPN_HOST} {Config.VPN_PORT}
 resolv-retry infinite
 nobind
