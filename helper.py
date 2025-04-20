@@ -131,11 +131,9 @@ from config import Config
 
 def generate_openvpn_config(provision_identity, output_path, force=True):
     """Generate OpenVPN client configuration file matching Bash 'new_client' logic."""
-    easyrsa_dir = '/etc/openvpn/server/easy-rsa'
+    easyrsa_dir = '/etc/openvpn/easy-rsa'
     if not os.path.exists(easyrsa_dir):
-        easyrsa_dir = '/etc/openvpn/easy-rsa'  # fallback
-        if not os.path.exists(easyrsa_dir):
-            raise Exception("EasyRSA directory not found.")
+        raise Exception("EasyRSA directory not found.")
 
     openvpn_dir = '/etc/openvpn/server'
     if not os.path.exists(openvpn_dir):
@@ -171,10 +169,10 @@ def generate_openvpn_config(provision_identity, output_path, force=True):
         return subprocess.check_output(f"sed -ne '/BEGIN CERTIFICATE/,$ p' {path}", shell=True).decode()
 
     def read_common():
-        return read_file("/etc/openvpn/server/client-common.txt")
+        return read_file("/etc/openvpn/client-common.txt")
 
     def read_ca():
-        return read_file("/etc/openvpn/server/easy-rsa/pki/ca.crt")
+        return read_file("/etc/openvpn/easy-rsa/pki/ca.crt")
 
     def read_tls_crypt(path):
         return subprocess.check_output(f"sed -ne '/BEGIN OpenVPN Static key/,$ p' {path}", shell=True).decode()
