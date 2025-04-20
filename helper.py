@@ -145,7 +145,9 @@ def generate_openvpn_config(provision_identity, output_path, force=True):
 
     # Revoke existing certificate if it exists and force is True
     if os.path.exists(client_cert_path):
+
         if force:
+            os.chdir(easyrsa_dir)
             print(f"[INFO] Revoking existing cert for {provision_identity}...")
             subprocess.run(['./easyrsa', 'revoke', provision_identity], check=True, cwd=easyrsa_dir)
             subprocess.run(['./easyrsa', 'gen-crl'], check=True, cwd=easyrsa_dir)
@@ -155,11 +157,10 @@ def generate_openvpn_config(provision_identity, output_path, force=True):
                 os.remove(key_path)
         else:
             raise Exception(f"Client '{provision_identity}' already exists. Use force=True to regenerate.")
-
-    # Generate client certificate
+    os.chdir(easyrsa_dir)
     subprocess.run([
         './easyrsa', '--batch', '--days=3650', 'build-client-full', provision_identity, 'nopass'
-    ], check=True, cwd=easyrsa_dir)
+    ], check=True)
 
     # Read required parts
     def read_file(path):
