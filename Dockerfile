@@ -12,11 +12,11 @@ RUN apt-get update && apt-get install -y \
 # Create non-root user and set permissions
 RUN useradd -m -u 1000 appuser && \
     mkdir -p /app/static /app/templates /app/prometheus /var/www/templates && \
-    ln -sf /etc/openvpn/server /etc/openvpn/server && \
     chown -R appuser:appuser /app /var/www/templates && \
-    chmod -R 777 /etc/openvpn/easy-rsa && \
-    chmod -R 777 /etc/openvpn/easy-rsa/pki && \
-    chmod -R 755 /etc/openvpn/client /etc/openvpn/server
+    chmod -R 777 /etc/openvpn/easy-rsa || true && \
+    chmod -R 777 /etc/openvpn/easy-rsa/pki || true && \
+    chmod -R 755 /etc/openvpn/client /etc/openvpn/server || true
+
 
 # Copy requirements first to leverage Docker cache
 COPY requirements.txt .
