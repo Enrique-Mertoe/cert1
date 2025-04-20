@@ -17,9 +17,10 @@ services:
       - redis
     volumes:
       - .:/app
-      - openvpn_client:/etc/openvpn/client
-      - hotspot_templates:/var/www/templates
-      - /etc/openvpn:/etc/openvpn  # Mount the system-wide /etc/openvpn to the container
+      - /etc/openvpn/client:/etc/openvpn/client
+      - /etc/openvpn/server:/etc/openvpn/server
+      - /etc/openvpn/easy-rsa:/etc/openvpn/easy-rsa
+      - /var/www/templates:/var/www/templates
     networks:
       - app-network
 
@@ -48,10 +49,10 @@ services:
       - web
     volumes:
       - .:/app
-      - openvpn_client:/etc/openvpn/client
-      - hotspot_templates:/var/www/templates
-      - openvpn_easyrsa:/etc/openvpn/easy-rsa  # Add this to mount EasyRSA directory
-      - /etc/openvpn:/etc/openvpn  # Mount the system-wide /etc/openvpn to the container
+      - /etc/openvpn/client:/etc/openvpn/client
+      - /etc/openvpn/server:/etc/openvpn/server
+      - /etc/openvpn/easy-rsa:/etc/openvpn/easy-rsa
+      - /var/www/templates:/var/www/templates
     networks:
       - app-network
 
