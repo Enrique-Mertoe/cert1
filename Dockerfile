@@ -10,7 +10,6 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user and set permissions
-# Create non-root user and set permissions
 RUN useradd -m -u 1000 appuser && \
     mkdir -p /app/static /app/templates /app/prometheus /var/www/templates && \
     ln -sf /etc/openvpn/server /etc/openvpn/server && \
