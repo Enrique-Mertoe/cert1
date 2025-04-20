@@ -181,9 +181,10 @@ def generate_openvpn_config(provision_identity, output_path, force=True):
     ca = read_ca()
     cert = read_cert_body(f"{easyrsa_dir}/pki/issued/{provision_identity}.crt")
     key = read_file(f"{easyrsa_dir}/pki/private/{provision_identity}.key")
-    tls_crypt = read_tls_crypt(f"{openvpn_dir}/tc.key")
+    # tls_crypt = read_tls_crypt(f"{openvpn_dir}/tc.key")
     common_config = read_common()
-
+    # < tls - crypt >
+    # {tls_crypt} < / tls - crypt >
     full_config = f"""{common_config}
 <ca>
 {ca}</ca>
@@ -191,8 +192,6 @@ def generate_openvpn_config(provision_identity, output_path, force=True):
 {cert}</cert>
 <key>
 {key}</key>
-<tls-crypt>
-{tls_crypt}</tls-crypt>
 """
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
