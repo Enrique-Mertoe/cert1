@@ -705,6 +705,7 @@ echo -e "  ${GREEN}docker ps${NC}             # Check container status"
 # Start services using manage.sh
 echo -e "\n${YELLOW}Starting services with manage.sh...${NC}"
 chmod +x ./manage.sh
+chmod +x ./domain.sh
 chmod +x ./redis_test.py
 ./manage.sh start
 
