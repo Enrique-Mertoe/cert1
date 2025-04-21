@@ -6,7 +6,7 @@ It wil be used by the main site (myisp.com) to generate new vpn clients for mikr
 It will also be accessed with Mikrotik to fetch these certs and install them on behalf of the user
 """
 import os
-from flask import Flask, jsonify, send_file, send_from_directory
+from flask import Flask, jsonify, send_file, send_from_directory, request
 import openvpn_api
 from celery.result import AsyncResult
 from config import Config
@@ -84,13 +84,15 @@ def get_task_status(task_id):
             # REQUEST_COUNT.labels(method='GET', endpoint='/task_status', status='500').inc()
             return jsonify({
                 "status": "error",
-                "message": str(task_result.result)
+                "message": str(task_result.result),
+                "ip_address": request.headers.get('X-Forwarded-For', request.remote_addr)
             }), 500
     else:
         # REQUEST_COUNT.labels(method='GET', endpoint='/task_status', status='202').inc()
         return jsonify({
             "status": "processing",
-            "state": task_result.state
+            "state": task_result.state,
+            "ip_address": request.headers.get('X-Forwarded-For', request.remote_addr)
         }), 202
 
 
