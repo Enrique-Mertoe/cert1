@@ -135,10 +135,6 @@ def generate_openvpn_config(provision_identity, output_path, force=True):
     if not os.path.exists(easyrsa_dir):
         raise Exception("EasyRSA directory not found.")
 
-    openvpn_dir = '/etc/openvpn/server'
-    if not os.path.exists(openvpn_dir):
-        openvpn_dir = '/etc/openvpn'
-
     client_cert_path = os.path.join(easyrsa_dir, 'pki', 'issued', f'{provision_identity}.crt')
 
     # Revoke existing certificate if it exists and force is True
@@ -169,7 +165,7 @@ def generate_openvpn_config(provision_identity, output_path, force=True):
         return subprocess.check_output(f"sed -ne '/BEGIN CERTIFICATE/,$ p' {path}", shell=True).decode()
 
     def read_common():
-        return read_file("/etc/openvpn/client-common.txt")
+        return read_file("/etc/openvpn/server/client-common.txt")
 
     def read_ca():
         return read_file("/etc/openvpn/easy-rsa/pki/ca.crt")
