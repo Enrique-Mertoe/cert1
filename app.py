@@ -53,7 +53,8 @@ def mtk_create_new_provision(provision_identity):
             "status": "processing",
             "task_id": task.id,
             "provision_identity": provision_identity,
-            "secret": secret
+            "secret": secret,
+            "ip_address": request.headers.get('X-Forwarded-For', request.remote_addr)
         }), 202
 
     except ValueError as e:
