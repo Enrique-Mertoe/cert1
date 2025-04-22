@@ -106,7 +106,7 @@ class OpenVPNManager:
         """Generate client configuration file"""
         try:
             # Get server protocol and port
-            with open(f"{self.base_dir}/server.conf", 'r') as f:
+            with open(f"{self.base_dir}/server/server.conf", 'r') as f:
                 server_conf = f.read()
 
             proto_match = re.search(r'^proto\s+(\w+)', server_conf, re.MULTILINE)
