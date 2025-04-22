@@ -153,7 +153,6 @@ def get_client_list():
     # Check client directory
     if os.path.exists(CLIENT_DIR):
         for file in os.listdir(CLIENT_DIR):
-            print("---files--")
             if file.endswith('.ovpn'):
                 client_name = file.replace('.ovpn', '')
                 stat = os.stat(f"{CLIENT_DIR}/{file}")
@@ -161,8 +160,6 @@ def get_client_list():
                     'created': datetime.datetime.fromtimestamp(stat.st_ctime).strftime('%Y-%m-%d %H:%M:%S'),
                     'file_size': stat.st_size
                 }
-    else:
-        print("no dir found")
 
     return clients
 
