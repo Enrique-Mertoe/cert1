@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %} - Dashboard{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">VPN Clients Dashboard</h2>
+
+<div class="row mb-4">
+    <div class="col-md-6 col-lg-3 mb-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h5 class="card-title">Total Clients</h5>
+                <h2 class="card-text">{{ clients|length }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-3 mb-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h5 class="card-title">Connected Clients</h5>
+                <h2 class="card-text">{{ connected|length }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-3 mb-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <h5 class="card-title">Disconnected Clients</h5>
+                <h2 class="card-text">{{ clients|length - connected|length }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-3 mb-3">
+        <a href="{{ url_for('create_client') }}" class="text-decoration-none">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Add Client</h5>
+                    <h2 class="card-text"><i class="bi bi-plus-circle"></i> Create</h2>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Client List</h5>
+            </div>
+            <div class="card-body">
+                {% if clients %}
+                <div class="row">
+                    {% for client_name, client_data in clients.items() %}
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card client-card {% if client_name in connected %}connected{% else %}disconnected{% endif %}">
+                            <div class="card-body">
+                                <h5 class="card-title d-flex justify-content-between">
+                                    {{ client_name }}
+                                    <span class="badge {% if client_name in connected %}bg-success{% else %}bg-danger{% endif %}">
+                                        {% if client_name in connected %}Connected{% else %}Disconnected{% endif %}
+                                    </span>
+                                </h5>
+                                <p class="card-text">Created: {{ client_data.created }}</p>
+                                {% if client_name in connected %}
+                                <p class="card-text">IP: {{ connected[client_name].vpn_ip }}</p>
+                                {% endif %}
+                                <div class="d-flex gap-2">
+                                    <a href="{{ url_for('client_details', client_name=client_name) }}" class="btn btn-primary btn-sm">Details</a>
+                                    <a href="{{ url_for('download_config', client_name=client_name) }}" class="btn btn-success btn-sm">Download</a>
+                                    <form method="post" action="{{ url_for('revoke_client', client_name=client_name) }}" class="d-inline" onsubmit="return confirm('Are you sure you want to revoke this client?');">
+                                        <button class="btn btn-warning btn-sm">Revoke</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="alert alert-info">No clients found. Create your first client!</div>
+                <a href="{{ url_for('create_client') }}" class="btn btn-primary">Create Client</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

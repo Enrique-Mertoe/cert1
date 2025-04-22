@@ -10,6 +10,7 @@ from flask import Flask, jsonify, send_file, send_from_directory, request
 import openvpn_api
 from celery.result import AsyncResult
 from config import Config
+from main import admin_routs
 from main.vpn import get_vpn_clients
 from security import generate_secret, require_secret
 from tasks import generate_certificate
@@ -21,10 +22,10 @@ app.config.from_object(Config)
 v = openvpn_api.VPN(Config.VPN_HOST, Config.VPN_PORT)
 
 
-@app.route('/')
-def hello_world():
-    # REQUEST_COUNT.labels(method='GET', endpoint='/', status='401').inc()
-    return jsonify({"status": "unauthorized"}), 401
+# @app.route('/')
+# def hello_world():
+#     # REQUEST_COUNT.labels(method='GET', endpoint='/', status='401').inc()
+#     return jsonify({"status": "unauthorized"}), 401
 
 
 @app.route('/mikrotik/openvpn/create_provision/<provision_identity>', methods=["POST"])
@@ -125,6 +126,8 @@ def mtk_hostpot_ui(provision_identity, secret, form):
     except Exception as e:
         return jsonify({"error": "Internal server error"}), 500
 
+
+admin_routs.init(app)
 
 if __name__ == '__main__':
     app.run(debug=False)  # Set debug=False in production
