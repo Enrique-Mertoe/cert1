@@ -230,7 +230,7 @@ def create_client_certificate(client_name):
 {open(f"{CA_DIR}/ca.crt").read()}
 </ca>
 <cert>
-{read_cert_body(f'/etc/openvpn/server/easy-rsa/pki/issued/{client_name}.crt')}
+{read_cert_body(f'/etc/openvpn/easy-rsa/pki/issued/{client_name}.crt')}
 </cert>
 <key>
 {open(f"{CA_DIR}/private/{client_name}.key").read()}
