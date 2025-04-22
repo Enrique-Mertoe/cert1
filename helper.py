@@ -195,18 +195,3 @@ def generate_openvpn_config(provision_identity, output_path, force=False):
         f.write(full_config)
 
     print(f"[SUCCESS] .ovpn config written to {output_path}")
-
-
-
-# def get_all_ips():
-#     ip_list = set()
-#
-#     # Loop through all network interfaces
-#     for interface, snics in psutil.net_if_addrs().items():
-#         for snic in snics:
-#             if snic.family == socket.AF_INET:
-#                 ip_list.add(snic.address)
-#
-#     return jsonify({
-#         "ip_addresses": list(ip_list)
-#     })

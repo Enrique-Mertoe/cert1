@@ -216,6 +216,9 @@ def create_client_certificate(client_name):
         client_name,
         "nopass"
     ], check=True)
+    def read_cert_body(path):
+        return subprocess.check_output(f"sed -ne '/BEGIN CERTIFICATE/,$ p' {path}", shell=True).decode()
+
 
     # Create client config
     server_ip = requests.get("https://api.ipify.org").text.strip()
@@ -225,7 +228,7 @@ def create_client_certificate(client_name):
 {open(f"{CA_DIR}/ca.crt").read()}
 </ca>
 <cert>
-{open(f"{CA_DIR}/issued/{client_name}.crt").read()}
+{read_cert_body(f'/etc/openvpn/server/easy-rsa/pki/issued/{client_name}.crt')}
 </cert>
 <key>
 {open(f"{CA_DIR}/private/{client_name}.key").read()}
