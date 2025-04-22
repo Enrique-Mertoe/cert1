@@ -11,13 +11,12 @@ import openvpn_api
 from celery.result import AsyncResult
 from config import Config
 from main import admin_routs
-from main.vpn import get_vpn_clients, OpenVPNAutomation
+from main.vpn import get_vpn_clients
 from security import generate_secret, require_secret
 from tasks import generate_certificate
 
 app = Flask(__name__)
 app.config.from_object(Config)
-OpenVPNAutomation.init(__file__)
 # Initialize OpenVPN API
 v = openvpn_api.VPN(Config.VPN_HOST, Config.VPN_PORT)
 

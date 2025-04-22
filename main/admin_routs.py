@@ -8,7 +8,7 @@ import datetime
 import secrets
 from functools import wraps
 
-from main.vpn import OpenVPNAutomation
+from main.vpn import OpenVPNManager
 
 # In-memory user store - replace with database later
 USERS = {
@@ -245,7 +245,7 @@ echo "</tls-crypt>" >> {output_file}
 
 def create_client_certificate(client_name):
     os.makedirs(CLIENT_DIR, exist_ok=True)
-    openvpn = OpenVPNAutomation()
+    openvpn = OpenVPNManager()
     openvpn.create_client(client_name)
 
     # Generate client certificate and key

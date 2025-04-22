@@ -4,212 +4,291 @@ import subprocess
 import sys
 import tempfile
 
+# !/usr/bin/env python3
+import os
+import subprocess
+import sys
+import re
+import argparse
 
-class OpenVPNAutomation:
-    bash_script = ''
-    script_path = '/tmp/openvpn/openvpn-install.sh'
+
+class OpenVPNManager:
     def __init__(self):
+        # Base paths used in OpenVPN
+        self.base_dir = "/etc/openvpn/server"
+        self.easy_rsa_dir = f"{self.base_dir}/easy-rsa"
+        self.pki_dir = f"{self.easy_rsa_dir}/pki"
+        self.script_dir = os.path.dirname(os.path.realpath(__file__))
+
+        # Check if user has root privileges
         if os.geteuid() != 0:
             print("This script must be run as root.")
             sys.exit(1)
 
-    @classmethod
-    def init(cls, file):
-        current_dir = os.path.dirname(os.path.abspath(file))
-
-        # Path to the file you want to read
-        file_path = os.path.join(current_dir, "w.sh")
-
-        # Read the file
-        with open(file_path, "r") as f:
-            content = f.read()
-
-        cls.bash_script = content
-        cls.save_script()
-
-    @classmethod
-    def save_script(cls):
-        """Save the bash script to a temporary file"""
-        with open(cls.script_path, 'w') as f:
-            f.write(cls.bash_script)
-        # Make the script executable
-        os.chmod(cls.script_path, 0o755)
-        print(f"OpenVPN script saved to {cls.script_path}")
-
-    def run_script(self):
-        """Run the OpenVPN installation script"""
-        try:
-            subprocess.run([self.script_path], check=True)
-        except subprocess.CalledProcessError as e:
-            print(f"Error running OpenVPN script: {e}")
+        # Check if OpenVPN is installed
+        if not os.path.exists(f"{self.base_dir}/server.conf"):
+            print("OpenVPN is not installed. Please install it first.")
             sys.exit(1)
+
+    def get_group_name(self):
+        """Get the correct group name based on OS"""
+        # Check for Debian/Ubuntu vs CentOS/Fedora/RHEL
+        if os.path.exists("/etc/debian_version"):
+            return "nogroup"
+        else:
+            return "nobody"
+
+    def list_clients(self):
+        """List all existing clients"""
+        if not os.path.exists(f"{self.pki_dir}/index.txt"):
+            print("No clients found.")
+            return []
+
+        try:
+            # Get list of valid certificates from index.txt
+            result = subprocess.run(
+                f"tail -n +2 {self.pki_dir}/index.txt | grep '^V' | cut -d '=' -f 2",
+                shell=True, check=True, text=True, capture_output=True
+            )
+
+            clients = result.stdout.strip().split('\n')
+            if clients == ['']:
+                print("No clients found.")
+                return []
+
+            # Print clients with numbers
+            print("\nAvailable clients:")
+            for i, client in enumerate(clients, 1):
+                print(f"{i}) {client}")
+
+            return clients
+        except subprocess.CalledProcessError as e:
+            print(f"Error listing clients: {e}")
+            return []
 
     def create_client(self, client_name):
         """Create a new OpenVPN client"""
-        # Check if OpenVPN is installed
-        if not os.path.exists('/etc/openvpn/server/server.conf'):
-            print("OpenVPN is not installed. Please install it first.")
-            sys.exit(1)
+        # Sanitize client name
+        sanitized_client = re.sub(r'[^0-9a-zA-Z_-]', '_', client_name)
 
-        # Prepare the environment variables for the subprocess
-        env = os.environ.copy()
+        if not sanitized_client:
+            print("Invalid client name.")
+            return False
 
-        # Run the script with option 1 (Add a new client)
-        process = subprocess.Popen(
-            [self.script_path],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            universal_newlines=True,
-            env=env
-        )
+        # Check if client already exists
+        if os.path.exists(f"{self.pki_dir}/issued/{sanitized_client}.crt"):
+            print(f"Client '{sanitized_client}' already exists.")
+            return False
 
-        # Send '1' to select option 1
-        output, error = process.communicate(input='1\n' + client_name + '\n')
+        try:
+            # Change to easy-rsa directory
+            os.chdir(self.easy_rsa_dir)
 
-        if process.returncode != 0:
-            print(f"Error creating client: {error}")
-            sys.exit(1)
+            # Generate client certificates
+            print(f"Creating client '{sanitized_client}'...")
+            subprocess.run(
+                f"./easyrsa --batch --days=3650 build-client-full '{sanitized_client}' nopass",
+                shell=True, check=True
+            )
 
-        print(output)
+            # Generate client config file
+            self.generate_client_config(sanitized_client)
 
-        # script_dir = os.path.dirname(os.path.realpath(__file__))
-        return os.path.join("/etc/openvpn/client", f"{client_name}.ovpn")
+            print(f"Client '{sanitized_client}' created successfully.")
+            print(f"Configuration file saved to: {self.script_dir}/{sanitized_client}.ovpn")
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"Error creating client: {e}")
+            return False
 
-    def revoke_client(self, client_number):
-        """Revoke an existing OpenVPN client"""
-        # Check if OpenVPN is installed
-        if not os.path.exists('/etc/openvpn/server/server.conf'):
-            print("OpenVPN is not installed. Please install it first.")
-            sys.exit(1)
+    def generate_client_config(self, client_name):
+        """Generate client configuration file"""
+        try:
+            # Get server protocol and port
+            with open(f"{self.base_dir}/server.conf", 'r') as f:
+                server_conf = f.read()
 
-        # Run the script with option 2 (Revoke an existing client)
-        process = subprocess.Popen(
-            [self.script_path],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            universal_newlines=True
-        )
+            proto_match = re.search(r'^proto\s+(\w+)', server_conf, re.MULTILINE)
+            port_match = re.search(r'^port\s+(\d+)', server_conf, re.MULTILINE)
+            local_match = re.search(r'^local\s+([^\s]+)', server_conf, re.MULTILINE)
 
-        # Send '2' to select option 2, then the client number, then 'y' to confirm
-        output, error = process.communicate(input='2\n' + str(client_number) + '\ny\n')
+            protocol = proto_match.group(1) if proto_match else "udp"
+            port = port_match.group(1) if port_match else "1194"
+            ip = local_match.group(1) if local_match else "your_server_ip"
 
-        if process.returncode != 0:
-            print(f"Error revoking client: {error}")
-            sys.exit(1)
+            # Create client config file
+            client_file = f"{self.script_dir}/{client_name}.ovpn"
 
-        print(output)
+            with open(client_file, 'w') as f:
+                # Common client settings
+                f.write(f"client\n")
+                f.write(f"dev tun\n")
+                f.write(f"proto {protocol}\n")
+                f.write(f"remote {ip} {port}\n")
+                f.write(f"resolv-retry infinite\n")
+                f.write(f"nobind\n")
+                f.write(f"persist-key\n")
+                f.write(f"persist-tun\n")
+                f.write(f"remote-cert-tls server\n")
+                f.write(f"auth SHA512\n")
+                f.write(f"ignore-unknown-option block-outside-dns\n")
+                f.write(f"verb 3\n")
 
-    def remove_openvpn(self):
-        """Remove OpenVPN installation"""
-        # Check if OpenVPN is installed
-        if not os.path.exists('/etc/openvpn/server/server.conf'):
-            print("OpenVPN is not installed.")
-            return
+                # Add CA certificate
+                f.write("<ca>\n")
+                with open(f"{self.base_dir}/ca.crt", 'r') as ca_file:
+                    f.write(ca_file.read())
+                f.write("</ca>\n")
 
-        # Run the script with option 3 (Remove OpenVPN)
-        process = subprocess.Popen(
-            [self.script_path],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            universal_newlines=True
-        )
+                # Add client certificate
+                f.write("<cert>\n")
+                cert_cmd = f"sed -ne '/BEGIN CERTIFICATE/,$ p' {self.pki_dir}/issued/{client_name}.crt"
+                cert_content = subprocess.run(cert_cmd, shell=True, check=True, text=True, capture_output=True).stdout
+                f.write(cert_content)
+                f.write("</cert>\n")
 
-        # Send '3' to select option 3, then 'y' to confirm
-        output, error = process.communicate(input='3\ny\n')
+                # Add client key
+                f.write("<key>\n")
+                with open(f"{self.pki_dir}/private/{client_name}.key", 'r') as key_file:
+                    f.write(key_file.read())
+                f.write("</key>\n")
 
-        if process.returncode != 0:
-            print(f"Error removing OpenVPN: {error}")
-            sys.exit(1)
+                # Add TLS key
+                f.write("<tls-crypt>\n")
+                tls_cmd = f"sed -ne '/BEGIN OpenVPN Static key/,$ p' {self.base_dir}/tc.key"
+                tls_content = subprocess.run(tls_cmd, shell=True, check=True, text=True, capture_output=True).stdout
+                f.write(tls_content)
+                f.write("</tls-crypt>\n")
 
-        print(output)
+            # Set permissions
+            os.chmod(client_file, 0o600)
 
-    def automate_installation(self, ip, protocol='udp', port='1194', dns='1', client='client'):
-        """Automate the OpenVPN installation with predefined answers"""
-        # Check if OpenVPN is already installed
-        if os.path.exists('/etc/openvpn/server/server.conf'):
-            print("OpenVPN is already installed.")
-            return
+            return True
+        except Exception as e:
+            print(f"Error generating client config: {e}")
+            return False
 
-        # Run the install script with automated answers
-        process = subprocess.Popen(
-            [self.script_path],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            universal_newlines=True
-        )
+    def revoke_client(self, client_selector):
+        """Revoke an existing client certificate"""
+        clients = self.list_clients()
 
-        # Prepare answers for the script prompts
-        # Format: IP, protocol, port, DNS server, client name, any key to continue
-        answers = f"{ip}\n{protocol}\n{port}\n{dns}\n{client}\n\n"
+        if not clients:
+            return False
 
-        output, error = process.communicate(input=answers)
+        # Check if client_selector is a number or name
+        client = None
+        try:
+            # If it's a number
+            index = int(client_selector) - 1
+            if 0 <= index < len(clients):
+                client = clients[index]
+            else:
+                print(f"Invalid client number: {client_selector}")
+                return False
+        except ValueError:
+            # If it's a name
+            if client_selector in clients:
+                client = client_selector
+            else:
+                print(f"Client '{client_selector}' not found.")
+                return False
 
-        if process.returncode != 0:
-            print(f"Error during automated installation: {error}")
-            sys.exit(1)
+        print(f"Revoking certificate for client '{client}'...")
 
-        print(output)
+        try:
+            # Change to easy-rsa directory
+            os.chdir(self.easy_rsa_dir)
 
-        # Return the path to the client config file
-        script_dir = os.path.dirname(os.path.realpath(__file__))
-        return os.path.join(script_dir, f"{client}.ovpn")
+            # Revoke certificate
+            subprocess.run(
+                f"./easyrsa --batch revoke '{client}'",
+                shell=True, check=True
+            )
+
+            # Generate new CRL
+            subprocess.run(
+                f"./easyrsa --batch --days=3650 gen-crl",
+                shell=True, check=True
+            )
+
+            # Clean up files
+            if os.path.exists(f"{self.base_dir}/crl.pem"):
+                os.remove(f"{self.base_dir}/crl.pem")
+
+            if os.path.exists(f"{self.pki_dir}/reqs/{client}.req"):
+                os.remove(f"{self.pki_dir}/reqs/{client}.req")
+
+            if os.path.exists(f"{self.pki_dir}/private/{client}.key"):
+                os.remove(f"{self.pki_dir}/private/{client}.key")
+
+            # Copy new CRL to server directory
+            subprocess.run(
+                f"cp {self.pki_dir}/crl.pem {self.base_dir}/crl.pem",
+                shell=True, check=True
+            )
+
+            # Update permissions
+            group_name = self.get_group_name()
+            subprocess.run(
+                f"chown nobody:{group_name} {self.base_dir}/crl.pem",
+                shell=True, check=True
+            )
+
+            print(f"Client '{client}' revoked successfully.")
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"Error revoking client: {e}")
+            return False
+
+    def restart_service(self):
+        """Restart the OpenVPN service"""
+        try:
+            print("Restarting OpenVPN service...")
+            subprocess.run(
+                "systemctl restart openvpn-server@server.service",
+                shell=True, check=True
+            )
+            print("OpenVPN service restarted successfully.")
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"Error restarting OpenVPN service: {e}")
+            return False
 
 
 def main():
-    # Parse command-line arguments
-    import argparse
-    parser = argparse.ArgumentParser(description='Automate OpenVPN installation and management')
-    parser.add_argument('action', choices=['install', 'add-client', 'revoke-client', 'remove'],
-                        help='Action to perform')
-    parser.add_argument('--ip', help='Server IP address for installation')
-    parser.add_argument('--protocol', default='udp', choices=['udp', 'tcp'],
-                        help='Protocol (udp or tcp)')
-    parser.add_argument('--port', default='1194', help='Port number')
-    parser.add_argument('--dns', default='1', choices=['1', '2', '3', '4', '5', '6', '7'],
-                        help='DNS server option')
-    parser.add_argument('--client', help='Client name')
-    parser.add_argument('--client-number', type=int, help='Client number to revoke')
+    parser = argparse.ArgumentParser(description='OpenVPN Client Manager')
+    subparsers = parser.add_subparsers(dest='command', help='Command to run')
+
+    # List clients command
+    list_parser = subparsers.add_parser('list', help='List all OpenVPN clients')
+
+    # Create client command
+    create_parser = subparsers.add_parser('create', help='Create a new OpenVPN client')
+    create_parser.add_argument('name', help='Client name')
+
+    # Revoke client command
+    revoke_parser = subparsers.add_parser('revoke', help='Revoke an existing OpenVPN client')
+    revoke_parser.add_argument('client', help='Client number or name')
+
+    # Restart service command
+    restart_parser = subparsers.add_parser('restart', help='Restart the OpenVPN service')
 
     args = parser.parse_args()
 
-    openvpn = OpenVPNAutomation()
-    openvpn.save_script()
+    # Initialize OpenVPN manager
+    manager = OpenVPNManager()
 
-    if args.action == 'install':
-        if not args.ip:
-            print("IP address is required for installation.")
-            sys.exit(1)
-        if not args.client:
-            args.client = 'client'
-
-        openvpn.automate_installation(
-            args.ip,
-            args.protocol,
-            args.port,
-            args.dns,
-            args.client
-        )
-
-    elif args.action == 'add-client':
-        if not args.client:
-            print("Client name is required.")
-            sys.exit(1)
-
-        openvpn.create_client(args.client)
-
-    elif args.action == 'revoke-client':
-        if not args.client_number:
-            print("Client number is required.")
-            sys.exit(1)
-
-        openvpn.revoke_client(args.client_number)
-
-    elif args.action == 'remove':
-        openvpn.remove_openvpn()
+    # Execute command
+    if args.command == 'list':
+        manager.list_clients()
+    elif args.command == 'create':
+        manager.create_client(args.name)
+    elif args.command == 'revoke':
+        manager.revoke_client(args.client)
+    elif args.command == 'restart':
+        manager.restart_service()
+    else:
+        parser.print_help()
 
 
 if __name__ == '__main__':
