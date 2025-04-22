@@ -80,6 +80,7 @@ class OpenVPNManager:
             print(f"Client '{sanitized_client}' already exists.")
             return False
 
+
         try:
             # Change to easy-rsa directory
             os.chdir(self.easy_rsa_dir)
@@ -95,7 +96,7 @@ class OpenVPNManager:
             self.generate_client_config(sanitized_client)
 
             print(f"Client '{sanitized_client}' created successfully.")
-            print(f"Configuration file saved to: {self.script_dir}/{sanitized_client}.ovpn")
+            print(f"Configuration file saved to: etc/openvpn/client/{client_name}.ovpn")
             return True
         except subprocess.CalledProcessError as e:
             print(f"Error creating client: {e}")
@@ -117,7 +118,7 @@ class OpenVPNManager:
             ip = local_match.group(1) if local_match else "your_server_ip"
 
             # Create client config file
-            client_file = f"{self.script_dir}/{client_name}.ovpn"
+            client_file =  f"etc/openvpn/client/{client_name}.ovpn"
 
             with open(client_file, 'w') as f:
                 # Common client settings
