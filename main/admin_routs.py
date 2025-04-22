@@ -1,4 +1,5 @@
 # app.py
+import requests
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
 import os
 import subprocess
@@ -213,7 +214,7 @@ def create_client_certificate(client_name):
     ], check=True)
 
     # Create client config
-    server_ip = subprocess.run(["curl", "-s", "ifconfig.me"], capture_output=True, text=True).stdout.strip()
+    server_ip = requests.get("https://api.ipify.org").text.strip()
 
     template = f"""client
 dev tun
