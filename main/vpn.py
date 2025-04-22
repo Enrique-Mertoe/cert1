@@ -140,17 +140,17 @@ class OpenVPNManager:
                 with open(f"{self.base_dir}/ca.crt", 'r') as ca_file:
                     f.write(ca_file.read())
                 f.write("</ca>\n")
-
+                pki = "/etc/openvpn/easy-rsa/pki"
                 # Add client certificate
                 f.write("<cert>\n")
-                cert_cmd = f"sed -ne '/BEGIN CERTIFICATE/,$ p' {self.pki_dir}/issued/{client_name}.crt"
+                cert_cmd = f"sed -ne '/BEGIN CERTIFICATE/,$ p' {pki}/issued/{client_name}.crt"
                 cert_content = subprocess.run(cert_cmd, shell=True, check=True, text=True, capture_output=True).stdout
                 f.write(cert_content)
                 f.write("</cert>\n")
 
                 # Add client key
                 f.write("<key>\n")
-                with open(f"{self.pki_dir}/private/{client_name}.key", 'r') as key_file:
+                with open(f"{pki}/private/{client_name}.key", 'r') as key_file:
                     f.write(key_file.read())
                 f.write("</key>\n")
 
