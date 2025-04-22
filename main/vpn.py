@@ -155,11 +155,11 @@ class OpenVPNManager:
                 f.write("</key>\n")
 
                 # Add TLS key
-                f.write("<tls-crypt>\n")
-                tls_cmd = f"sed -ne '/BEGIN OpenVPN Static key/,$ p' {self.base_dir}/tc.key"
-                tls_content = subprocess.run(tls_cmd, shell=True, check=True, text=True, capture_output=True).stdout
-                f.write(tls_content)
-                f.write("</tls-crypt>\n")
+                # f.write("<tls-crypt>\n")
+                # tls_cmd = f"sed -ne '/BEGIN OpenVPN Static key/,$ p' {self.base_dir}/server/tc.key"
+                # tls_content = subprocess.run(tls_cmd, shell=True, check=True, text=True, capture_output=True).stdout
+                # f.write(tls_content)
+                # f.write("</tls-crypt>\n")
 
             # Set permissions
             os.chmod(client_file, 0o600)
