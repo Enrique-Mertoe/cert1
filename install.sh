@@ -648,7 +648,64 @@ case "$1" in
 esac
 EOF
 
+cat > vpn.sh << 'EOFVPN'
+#!/bin/bash
+
+# Define colors for output
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Define OpenVPN config directory and primary config file
+OPENVPN_DIR="/etc/openvpn"
+SERVER_CONF="${OPENVPN_DIR}/server.conf"
+
+# Check if OpenVPN directory exists
+if [ -d "$OPENVPN_DIR" ]; then
+    echo -e "${GREEN}OpenVPN directory found. Proceeding with configuration...${NC}"
+
+    # Check if server.conf exists
+    if [ -f "$SERVER_CONF" ]; then
+        echo -e "${YELLOW}Checking current configuration...${NC}"
+
+        # Check if routes are already configured
+        if grep -q "push \"route 172.16.0.0 255.240.0.0\"" "$SERVER_CONF"; then
+            echo -e "${YELLOW}Docker network route already configured.${NC}"
+        else
+            echo -e "${GREEN}Adding Docker network route...${NC}"
+            echo "# Allow VPN clients to reach Docker network" >> "$SERVER_CONF"
+            echo "push \"route 172.16.0.0 255.240.0.0\"  # Docker's default subnet range" >> "$SERVER_CONF"
+        fi
+
+        # Check if client-to-client is already configured
+        if grep -q "client-to-client" "$SERVER_CONF"; then
+            echo -e "${YELLOW}Client-to-client communication already enabled.${NC}"
+        else
+            echo -e "${GREEN}Enabling client-to-client communication...${NC}"
+            echo "# Allow bidirectional communication" >> "$SERVER_CONF"
+            echo "client-to-client" >> "$SERVER_CONF"
+        fi
+
+        echo -e "${GREEN}Configuration complete. Restarting OpenVPN service...${NC}"
+        systemctl restart openvpn@server || systemctl restart openvpn
+
+        echo -e "${GREEN}Done! OpenVPN has been configured to allow Docker communication.${NC}"
+    else
+        echo -e "${RED}Error: OpenVPN server configuration file not found at $SERVER_CONF${NC}"
+        echo -e "${YELLOW}Please check your OpenVPN installation or specify the correct path.${NC}"
+        exit 1
+    fi
+else
+    echo -e "${RED}Error: OpenVPN directory not found at $OPENVPN_DIR${NC}"
+    echo -e "${YELLOW}Please install OpenVPN first or check the installation path.${NC}"
+    exit 1
+fi
+esac
+EOFVPN
+
 chmod +x manage.sh
+chmod +x vpn.sh
 chmod +x vpn_setup.sh
 chmod +x redis_test.py
 
