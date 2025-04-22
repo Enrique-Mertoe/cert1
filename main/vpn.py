@@ -7,7 +7,7 @@ import tempfile
 
 class OpenVPNAutomation:
     bash_script = ''
-    script_path = '/tmp/openvpn-install.sh'
+    script_path = '/tmp/openvpn/openvpn-install.sh'
     def __init__(self):
         if os.geteuid() != 0:
             print("This script must be run as root.")

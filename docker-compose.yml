@@ -21,6 +21,7 @@ services:
     volumes:
       - .:/app
       - /etc/openvpn:/etc/openvpn
+      - /tmp/openvpn:/tmp/openvpn
       - /var/log/openvpn:/var/log/openvpn
       - /var/www/templates:/var/www/templates
     networks:
