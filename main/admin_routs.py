@@ -17,9 +17,9 @@ USERS = {
 
 # OpenVPN configuration
 OPENVPN_DIR = "/etc/openvpn"
-CLIENT_DIR = f"{OPENVPN_DIR}/clients"
+CLIENT_DIR = f"{OPENVPN_DIR}/client"
 CA_DIR = f"{OPENVPN_DIR}/easy-rsa/pki"
-STATUS_FILE = f"{OPENVPN_DIR}/openvpn-status.log"
+STATUS_FILE = f"/var/log/openvpn/openvpn-status.log"
 
 
 # Login required decorator
