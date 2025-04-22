@@ -199,6 +199,11 @@ def get_connected_clients():
     return connected
 
 
+def read_file(path):
+    with open(path, 'r') as f:
+        return f.read()
+
+
 def create_client_certificate(client_name):
     os.makedirs(CLIENT_DIR, exist_ok=True)
 
@@ -214,18 +219,8 @@ def create_client_certificate(client_name):
 
     # Create client config
     server_ip = requests.get("https://api.ipify.org").text.strip()
-
-    template = f"""client
-dev tun
-proto udp
-remote {server_ip} 1194
-resolv-retry infinite
-nobind
-persist-key
-persist-tun
-remote-cert-tls server
-cipher AES-256-CBC
-verb 3
+    common = read_file("/etc/openvpn/server/client-common.txt")
+    template = f"""{common}
 <ca>
 {open(f"{CA_DIR}/ca.crt").read()}
 </ca>
