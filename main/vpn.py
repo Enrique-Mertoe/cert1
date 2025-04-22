@@ -26,7 +26,7 @@ class OpenVPNManager:
             sys.exit(1)
 
         # Check if OpenVPN is installed
-        if not os.path.exists(f"{self.base_dir}/server.conf"):
+        if not os.path.exists(f"{self.base_dir}/server/server.conf"):
             print("OpenVPN is not installed. Please install it first.")
             sys.exit(1)
 
