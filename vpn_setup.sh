@@ -19,7 +19,7 @@ sudo rm -rf /etc/easy-rsa
 # Step 2: Install OpenVPN and EasyRSA
 echo "Step 2: Installing OpenVPN and EasyRSA..."
 sudo apt-get update
-sudo apt-get install openvpn easy-rsa -y
+#sudo apt-get install openvpn easy-rsa -y
 
 if [[ ! -e /etc/openvpn/server/server.conf ]]; then
 # Detect some Debian minimal setups where neither wget nor curl are installed
@@ -183,9 +183,9 @@ LimitNPROC=infinity" > /etc/systemd/system/openvpn-server@server.service.d/disab
 		systemctl enable --now firewalld.service
 	fi
 	# Get easy-rsa
-#	easy_rsa_url='https://github.com/OpenVPN/easy-rsa/releases/download/v3.2.2/EasyRSA-3.2.2.tgz'
-#	mkdir -p /etc/openvpn/server/easy-rsa/
-#	{ wget -qO- "$easy_rsa_url" 2>/dev/null || curl -sL "$easy_rsa_url" ; } | tar xz -C /etc/openvpn/server/easy-rsa/ --strip-components 1
+	easy_rsa_url='https://github.com/OpenVPN/easy-rsa/releases/download/v3.2.2/EasyRSA-3.2.2.tgz'
+	mkdir -p /etc/openvpn/server/easy-rsa/
+	{ wget -qO- "$easy_rsa_url" 2>/dev/null || curl -sL "$easy_rsa_url" ; } | tar xz -C /etc/openvpn/easy-rsa/ --strip-components 1
 	chown -R root:root /etc/openvpn/easy-rsa/
 	cd /etc/openvpn/easy-rsa/
 	# Create the PKI, set up the CA and the server and client certificates
