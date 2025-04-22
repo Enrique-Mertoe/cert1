@@ -3,7 +3,15 @@
 # https://github.com/Nyr/openvpn-install
 #
 # Copyright (c) 2013 Nyr. Released under the MIT License.
+# Step 1: Clean up any existing OpenVPN installation
 
+echo "Step 1: Cleaning up existing OpenVPN installation..."
+sudo systemctl stop openvpn
+sudo systemctl stop openvpn-server@server
+sudo apt-get remove --purge openvpn easy-rsa -y
+sudo apt-get autoremove -y
+sudo rm -rf /etc/openvpn
+sudo rm -rf /etc/easy-rsa
 
 # Detect Debian users running the script with "sh" instead of bash
 if readlink /proc/$$/exe | grep -q "dash"; then
