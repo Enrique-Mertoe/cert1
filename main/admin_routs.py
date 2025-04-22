@@ -205,43 +205,113 @@ def read_file(path):
         return f.read()
 
 
+def create_openvpn_client(client_name, output_file):
+    # Create a temporary shell script
+    with open('/tmp/create_client.sh', 'w') as f:
+        f.write(f'''#!/bin/bash
+client="{client_name}"
+while [[ -z "$client" || -e /etc/openvpn/server/easy-rsa/pki/issued/"$client".crt ]]; do
+    echo "$client: invalid name."
+    read -p "Name: " unsanitized_client
+    client=$(sed 's/[^0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-]/_/g' <<< "$unsanitized_client")
+done
+cd /etc/openvpn/server/easy-rsa/
+./easyrsa --batch --days=3650 build-client-full "$client" nopass
+
+# Generates the custom client.ovpn
+cat /etc/openvpn/server/client-common.txt > {output_file}
+echo "<ca>" >> {output_file}
+cat /etc/openvpn/server/easy-rsa/pki/ca.crt >> {output_file}
+echo "</ca>" >> {output_file}
+echo "<cert>" >> {output_file}
+sed -ne '/BEGIN CERTIFICATE/,$ p' /etc/openvpn/server/easy-rsa/pki/issued/"$client".crt >> {output_file}
+echo "</cert>" >> {output_file}
+echo "<key>" >> {output_file}
+cat /etc/openvpn/server/easy-rsa/pki/private/"$client".key >> {output_file}
+echo "</key>" >> {output_file}
+echo "<tls-crypt>" >> {output_file}
+sed -ne '/BEGIN OpenVPN Static key/,$ p' /etc/openvpn/server/tc.key >> {output_file}
+echo "</tls-crypt>" >> {output_file}
+''')
+
+    # Make the script executable
+    os.chmod('/tmp/create_client.sh', 0o755)
+
+    # Run the script
+    return subprocess.run(['/tmp/create_client.sh'], check=True)
+
 def create_client_certificate(client_name):
     os.makedirs(CLIENT_DIR, exist_ok=True)
 
     # Generate client certificate and key
     os.chdir("/etc/openvpn/server/easy-rsa/")
-    subprocess.run([
-        f"./easyrsa",
-        '--batch',
-        '--days=3650',
-        "build-client-full",
-        client_name,
-        "nopass"
-    ], check=True)
-
-    def read_cert_body(path):
-        return subprocess.check_output(f"sed -ne '/BEGIN CERTIFICATE/,$ p' {path}", shell=True).decode()
-
-    # Create client config
-    server_ip = requests.get("https://api.ipify.org").text.strip()
-    common = read_file("/etc/openvpn/server/client-common.txt")
-    template = f"""{common}
-<ca>
-{open(f"{CA_DIR}/ca.crt").read()}
-</ca>
-<cert>
-{read_cert_body(f'/etc/openvpn/easy-rsa/pki/issued/{client_name}.crt')}
-</cert>
-<key>
-{open(f"{CA_DIR}/private/{client_name}.key").read()}
-</key>
-<tls-crypt>
-    {open(f"{OPENVPN_DIR}/server/tc.key").read()}
-</tls-crypt>
-"""
-
-    with open(f"{CLIENT_DIR}/{client_name}.ovpn", "w") as f:
-        f.write(template)
+    res = create_openvpn_client(client_name, f"{CLIENT_DIR}/{client_name}.ovpn")
+    print(res)
+#     subprocess.run([
+#         f"./easyrsa",
+#         '--batch',
+#         '--days=3650',
+#         "build-client-full",
+#         client_name,
+#         "nopass"
+#     ], check=True)
+#     cdr = f"{CLIENT_DIR}/{client_name}.ovpn"
+#     scr = f"""
+#     new_client () {{
+# 	# Generates the custom client.ovpn
+# 	{{
+# 	cat /etc/openvpn/server/client-common.txt
+# 	echo "<ca>"
+# 	cat /etc/openvpn/server/easy-rsa/pki/ca.crt
+# 	echo "</ca>"
+# 	echo "<cert>"
+# 	sed -ne '/BEGIN CERTIFICATE/,$ p' /etc/openvpn/server/easy-rsa/pki/issued/"$client".crt
+# 	echo "</cert>"
+# 	echo "<key>"
+# 	cat /etc/openvpn/server/easy-rsa/pki/private/"$client".key
+# 	echo "</key>"
+# 	echo "<tls-crypt>"
+# 	sed -ne '/BEGIN OpenVPN Static key/,$ p' /etc/openvpn/server/tc.key
+# 	echo "</tls-crypt>"
+# 	}} > {cdr}
+# }}
+#
+# client={client_name}
+# 			while [[ -z "$client" || -e /etc/openvpn/server/easy-rsa/pki/issued/"$client".crt ]]; do
+# 				echo "$client: invalid name."
+# 				read -p "Name: " unsanitized_client
+# 				client=$(sed 's/[^0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-]/_/g' <<< "$unsanitized_client")
+# 			done
+# 			cd /etc/openvpn/server/easy-rsa/
+# 			./easyrsa --batch --days=3650 build-client-full "$client" nopass
+# 			# Generates the custom client.ovpn
+# 			new_client
+#     """
+#     prc = subprocess.run([scr],check=True)
+#
+#     def read_cert_body(path):
+#         return subprocess.check_output(f"sed -ne '/BEGIN CERTIFICATE/,$ p' {path}", shell=True).decode()
+#
+#     # Create client config
+#     server_ip = requests.get("https://api.ipify.org").text.strip()
+#     common = read_file("/etc/openvpn/server/client-common.txt")
+#     template = f"""{common}
+# <ca>
+# {open(f"{CA_DIR}/ca.crt").read()}
+# </ca>
+# <cert>
+# {read_cert_body(f'/etc/openvpn/easy-rsa/pki/issued/{client_name}.crt')}
+# </cert>
+# <key>
+# {open(f"{CA_DIR}/private/{client_name}.key").read()}
+# </key>
+# <tls-crypt>
+#     {open(f"{OPENVPN_DIR}/server/tc.key").read()}
+# </tls-crypt>
+# """
+#
+#     with open(f"{CLIENT_DIR}/{client_name}.ovpn", "w") as f:
+#         f.write(template)
 
 
 def revoke_client_certificate(client_name):
