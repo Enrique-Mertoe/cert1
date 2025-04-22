@@ -8,6 +8,8 @@ import datetime
 import secrets
 from functools import wraps
 
+from main.vpn import OpenVPNAutomation
+
 # In-memory user store - replace with database later
 USERS = {
     "admin": {
@@ -240,13 +242,18 @@ echo "</tls-crypt>" >> {output_file}
     # Run the script
     return subprocess.run(['/tmp/create_client.sh'], check=True)
 
+
 def create_client_certificate(client_name):
     os.makedirs(CLIENT_DIR, exist_ok=True)
+    openvpn = OpenVPNAutomation()
+    openvpn.create_client(client_name)
 
     # Generate client certificate and key
-    os.chdir("/etc/openvpn/server/easy-rsa/")
-    res = create_openvpn_client(client_name, f"{CLIENT_DIR}/{client_name}.ovpn")
-    print(res)
+    # os.chdir("/etc/openvpn/server/easy-rsa/")
+    # res = create_openvpn_client(client_name, f"{CLIENT_DIR}/{client_name}.ovpn")
+    # print(res)
+
+
 #     subprocess.run([
 #         f"./easyrsa",
 #         '--batch',
