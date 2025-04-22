@@ -235,11 +235,11 @@ verb 3
 <key>
 {open(f"{CA_DIR}/private/{client_name}.key").read()}
 </key>
-<tls-crypt>
-{open(f"{OPENVPN_DIR}/server/tc.key").read()}
-</tls-crypt>
-"""
 
+"""
+    # < tls - crypt >
+    # {open(f"{OPENVPN_DIR}/server/tc.key").read()}
+    # < / tls - crypt >
     with open(f"{CLIENT_DIR}/{client_name}.ovpn", "w") as f:
         f.write(template)
 
