@@ -134,13 +134,13 @@ class OpenVPNManager:
                 f.write(f"auth SHA512\n")
                 f.write(f"ignore-unknown-option block-outside-dns\n")
                 f.write(f"verb 3\n")
-
+                pki = "/etc/openvpn/easy-rsa/pki"
                 # Add CA certificate
                 f.write("<ca>\n")
-                with open(f"{self.base_dir}/ca.crt", 'r') as ca_file:
+                with open(f"{pki}/ca.crt", 'r') as ca_file:
                     f.write(ca_file.read())
                 f.write("</ca>\n")
-                pki = "/etc/openvpn/easy-rsa/pki"
+
                 # Add client certificate
                 f.write("<cert>\n")
                 cert_cmd = f"sed -ne '/BEGIN CERTIFICATE/,$ p' {pki}/issued/{client_name}.crt"
