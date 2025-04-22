@@ -7,16 +7,8 @@ import tempfile
 
 class OpenVPNAutomation:
     bash_script = ''
-
+    script_path = '/tmp/openvpn-install.sh'
     def __init__(self):
-        # Store the bash script in a variable
-        self.script_path = '/tmp/openvpn-install.sh'
-        #         self. = '''#!/bin/bash
-        # # The entire OpenVPN installation script content goes here
-        # # This is the Nyr/openvpn-install script
-        # '''
-
-        # Check if user has root privileges
         if os.geteuid() != 0:
             print("This script must be run as root.")
             sys.exit(1)
@@ -33,14 +25,16 @@ class OpenVPNAutomation:
             content = f.read()
 
         cls.bash_script = content
+        cls.save_script()
 
-    def save_script(self):
+    @classmethod
+    def save_script(cls):
         """Save the bash script to a temporary file"""
-        with open(self.script_path, 'w') as f:
-            f.write(self.bash_script)
+        with open(cls.script_path, 'w') as f:
+            f.write(cls.bash_script)
         # Make the script executable
-        os.chmod(self.script_path, 0o755)
-        print(f"OpenVPN script saved to {self.script_path}")
+        os.chmod(cls.script_path, 0o755)
+        print(f"OpenVPN script saved to {cls.script_path}")
 
     def run_script(self):
         """Run the OpenVPN installation script"""
