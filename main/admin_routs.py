@@ -205,6 +205,8 @@ def create_client_certificate(client_name):
     # Generate client certificate and key
     subprocess.run([
         f"{OPENVPN_DIR}/easy-rsa/easyrsa",
+        '--batch',
+        '--days=3650',
         "build-client-full",
         client_name,
         "nopass"
