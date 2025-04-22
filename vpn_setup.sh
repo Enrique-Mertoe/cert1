@@ -29,7 +29,8 @@ cd /etc/openvpn/easy-rsa
 
 # Initialize PKI
 echo "Initializing PKI..."
-sudo ./easyrsa init-pki
+sudo ./easyrsa --batch init-pki
+openvpn --genkey secret /etc/openvpn/server/tc.key
 
 # Create vars file with organization details
 echo "Creating vars file..."

@@ -11,6 +11,8 @@ import sys
 import re
 import argparse
 
+import requests
+
 
 class OpenVPNManager:
     def __init__(self):
@@ -115,7 +117,7 @@ class OpenVPNManager:
 
             protocol = proto_match.group(1) if proto_match else "udp"
             port = port_match.group(1) if port_match else "1194"
-            ip = local_match.group(1) if local_match else "your_server_ip"
+            ip = requests.get("https://api.ipify.org").text.strip()
 
             # Create client config file
             client_file =  f"/etc/openvpn/client/{client_name}.ovpn"
@@ -155,11 +157,11 @@ class OpenVPNManager:
                 f.write("</key>\n")
 
                 # Add TLS key
-                # f.write("<tls-crypt>\n")
-                # tls_cmd = f"sed -ne '/BEGIN OpenVPN Static key/,$ p' {self.base_dir}/server/tc.key"
-                # tls_content = subprocess.run(tls_cmd, shell=True, check=True, text=True, capture_output=True).stdout
-                # f.write(tls_content)
-                # f.write("</tls-crypt>\n")
+                f.write("<tls-crypt>\n")
+                tls_cmd = f"sed -ne '/BEGIN OpenVPN Static key/,$ p' {self.base_dir}/server/tc.key"
+                tls_content = subprocess.run(tls_cmd, shell=True, check=True, text=True, capture_output=True).stdout
+                f.write(tls_content)
+                f.write("</tls-crypt>\n")
 
             # Set permissions
             os.chmod(client_file, 0o600)
