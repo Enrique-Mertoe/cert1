@@ -81,7 +81,7 @@ TUN needs to be enabled before running this installer."
 fi
 
 # Store the absolute path of the directory where the script is located
-script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+script_dir="/etc/openvpn/client"
 
 new_client () {
 	# Generates the custom client.ovpn
