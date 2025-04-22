@@ -17,7 +17,7 @@ import requests
 class OpenVPNManager:
     def __init__(self):
         # Base paths used in OpenVPN
-        self.base_dir = "/etc/openvpn"
+        self.base_dir = "/etc/openvpn/server"
         self.easy_rsa_dir = f"{self.base_dir}/easy-rsa"
         self.pki_dir = f"{self.easy_rsa_dir}/pki"
         self.script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -28,7 +28,7 @@ class OpenVPNManager:
             sys.exit(1)
 
         # Check if OpenVPN is installed
-        if not os.path.exists(f"{self.base_dir}/server/server.conf"):
+        if not os.path.exists(f"{self.base_dir}/server.conf"):
             print("OpenVPN is not installed. Please install it first.")
             sys.exit(1)
 
@@ -108,7 +108,7 @@ class OpenVPNManager:
         """Generate client configuration file"""
         try:
             # Get server protocol and port
-            with open(f"{self.base_dir}/server/server.conf", 'r') as f:
+            with open(f"{self.base_dir}/server.conf", 'r') as f:
                 server_conf = f.read()
 
             proto_match = re.search(r'^proto\s+(\w+)', server_conf, re.MULTILINE)
@@ -158,7 +158,7 @@ class OpenVPNManager:
 
                 # Add TLS key
                 f.write("<tls-crypt>\n")
-                tls_cmd = f"sed -ne '/BEGIN OpenVPN Static key/,$ p' {self.base_dir}/server/tc.key"
+                tls_cmd = f"sed -ne '/BEGIN OpenVPN Static key/,$ p' {self.base_dir}/tc.key"
                 tls_content = subprocess.run(tls_cmd, shell=True, check=True, text=True, capture_output=True).stdout
                 f.write(tls_content)
                 f.write("</tls-crypt>\n")
