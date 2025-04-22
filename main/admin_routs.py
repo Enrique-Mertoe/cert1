@@ -209,17 +209,18 @@ def create_client_certificate(client_name):
     os.makedirs(CLIENT_DIR, exist_ok=True)
 
     # Generate client certificate and key
+    os.chdir("/etc/openvpn/server/easy-rsa/")
     subprocess.run([
-        f"{SERVER_DIR}/easy-rsa/easyrsa",
+        f"./easyrsa",
         '--batch',
         '--days=3650',
         "build-client-full",
         client_name,
         "nopass"
     ], check=True)
+
     def read_cert_body(path):
         return subprocess.check_output(f"sed -ne '/BEGIN CERTIFICATE/,$ p' {path}", shell=True).decode()
-
 
     # Create client config
     server_ip = requests.get("https://api.ipify.org").text.strip()
@@ -234,11 +235,11 @@ def create_client_certificate(client_name):
 <key>
 {open(f"{CA_DIR}/private/{client_name}.key").read()}
 </key>
-
+<tls-crypt>
+    {open(f"{OPENVPN_DIR}/server/tc.key").read()}
+</tls-crypt>
 """
-    # < tls - crypt >
-    # {open(f"{OPENVPN_DIR}/server/tc.key").read()}
-    # < / tls - crypt >
+
     with open(f"{CLIENT_DIR}/{client_name}.ovpn", "w") as f:
         f.write(template)
 
