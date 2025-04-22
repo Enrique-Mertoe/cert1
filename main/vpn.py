@@ -15,7 +15,7 @@ import argparse
 class OpenVPNManager:
     def __init__(self):
         # Base paths used in OpenVPN
-        self.base_dir = "/etc/openvpn/server"
+        self.base_dir = "/etc/openvpn"
         self.easy_rsa_dir = f"{self.base_dir}/easy-rsa"
         self.pki_dir = f"{self.easy_rsa_dir}/pki"
         self.script_dir = os.path.dirname(os.path.realpath(__file__))
