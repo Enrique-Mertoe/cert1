@@ -234,7 +234,7 @@ verb 3
 {open(f"{CA_DIR}/private/{client_name}.key").read()}
 </key>
 <tls-crypt>
-{open(f"{OPENVPN_DIR}/ta.key").read()}
+{open(f"{OPENVPN_DIR}/server/ta.key").read()}
 </tls-crypt>
 """
 
