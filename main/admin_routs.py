@@ -18,8 +18,9 @@ USERS = {
 
 # OpenVPN configuration
 OPENVPN_DIR = "/etc/openvpn"
+SERVER_DIR = "/etc/openvpn/server"
 CLIENT_DIR = f"{OPENVPN_DIR}/client"
-CA_DIR = f"{OPENVPN_DIR}/easy-rsa/pki"
+CA_DIR = f"{SERVER_DIR}/easy-rsa/pki"
 STATUS_FILE = f"/var/log/openvpn/openvpn-status.log"
 
 
@@ -209,7 +210,7 @@ def create_client_certificate(client_name):
 
     # Generate client certificate and key
     subprocess.run([
-        f"{OPENVPN_DIR}/easy-rsa/easyrsa",
+        f"{SERVER_DIR}/easy-rsa/easyrsa",
         '--batch',
         '--days=3650',
         "build-client-full",
