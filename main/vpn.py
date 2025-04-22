@@ -85,12 +85,12 @@ class OpenVPNManager:
 
         try:
             # Change to easy-rsa directory
-            os.chdir(self.easy_rsa_dir)
+            # os.chdir(self.easy_rsa_dir)
 
             # Generate client certificates
             print(f"Creating client '{sanitized_client}'...")
             subprocess.run(
-                f"./easyrsa --batch --days=3650 build-client-full '{sanitized_client}' nopass",
+                f"{self.easy_rsa_dir}/easyrsa --batch --days=3650 build-client-full '{sanitized_client}' nopass",
                 shell=True, check=True
             )
 
@@ -101,6 +101,7 @@ class OpenVPNManager:
             print(f"Configuration file saved to: /etc/openvpn/client/{client_name}.ovpn")
             return True
         except subprocess.CalledProcessError as e:
+            raise
             print(f"Error creating client: {e}")
             return False
 
