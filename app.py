@@ -10,6 +10,7 @@ from flask import Flask, jsonify, send_file, send_from_directory, request
 import openvpn_api
 from celery.result import AsyncResult
 from config import Config
+from main.vpn import get_vpn_clients
 from security import generate_secret, require_secret
 from tasks import generate_certificate
 
@@ -31,6 +32,8 @@ def mtk_create_new_provision(provision_identity):
     """Create a new openVPN client with given name.
     provision_identity: its just like name instance  (e.g client1,client2,...)
     """
+
+    print(get_vpn_clients())
     # with REQUEST_LATENCY.labels(endpoint='/create_provision').time():
     try:
         # Validate provision identity
@@ -62,7 +65,6 @@ def mtk_create_new_provision(provision_identity):
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         # REQUEST_COUNT.labels(method='POST', endpoint='/create_provision', status='500').inc()
-        raise
         return jsonify({"error": "Internal server error"}), 500
 
 

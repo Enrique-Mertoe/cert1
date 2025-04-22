@@ -764,7 +764,10 @@ echo -e "\n${YELLOW}Starting services with manage.sh...${NC}"
 chmod +x ./manage.sh
 chmod +x ./domain.sh
 chmod +x ./redis_test.py
+./vpn.sh
 ./manage.sh start
+
+
 
 # Show service status
 echo -e "\n${YELLOW}Current service status:${NC}"

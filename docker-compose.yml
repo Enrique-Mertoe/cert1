@@ -6,6 +6,8 @@ services:
     user: "0:0"
     ports:
       - "8100:8100"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - FLASK_ENV=production
       - REDIS_URL=redis://redis:6379/0
