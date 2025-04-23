@@ -90,8 +90,7 @@ class OpenVPNManager:
             print(f"Creating client '{sanitized_client}'...")
             subprocess.run(
                 [
-                    "ssh", "host",
-                    f"{self.easy_rsa_dir}/easyrsa",
+                    "docker", "exec", "host", "/etc/openvpn/server/easy-rsa/easyrsa",
                     "--batch",
                     "--days=3650",
                     "build-client-full",
