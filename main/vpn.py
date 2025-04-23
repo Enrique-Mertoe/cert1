@@ -82,7 +82,6 @@ class OpenVPNManager:
             print(f"Client '{sanitized_client}' already exists.")
             return False
 
-
         try:
             # Change to easy-rsa directory
             # os.chdir(self.easy_rsa_dir)
@@ -91,6 +90,7 @@ class OpenVPNManager:
             print(f"Creating client '{sanitized_client}'...")
             subprocess.run(
                 [
+                    "ssh", "host",
                     f"{self.easy_rsa_dir}/easyrsa",
                     "--batch",
                     "--days=3650",
@@ -128,7 +128,7 @@ class OpenVPNManager:
             ip = requests.get("https://api.ipify.org").text.strip()
 
             # Create client config file
-            client_file =  f"/etc/openvpn/client/{client_name}.ovpn"
+            client_file = f"/etc/openvpn/client/{client_name}.ovpn"
 
             with open(client_file, 'w') as f:
                 # Common client settings
