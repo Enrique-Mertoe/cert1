@@ -4,24 +4,13 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
-# Install necessary system dependencies (you can remove OpenVPN and EasyRSA installation)
+# Install system dependencies (no OpenVPN or EasyRSA install here)
 RUN apt-get update && apt-get install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user and set permissions
-RUN useradd -m -u 1000 appuser && \
-    mkdir -p /app/static /app/templates /app/prometheus /var/www/templates && \
-    chown -R appuser:appuser /app /var/www/templates && \
-    chmod -R 777 /etc/openvpn/easy-rsa || true && \
-    chmod -R 777 /etc/openvpn/easy-rsa/pki || true && \
-    chmod -R 755 /etc/openvpn/client /etc/openvpn/server || true
-
-
-# Copy requirements first to leverage Docker cache
+# Copy requirements and install Python deps
 COPY requirements.txt .
-
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
@@ -36,11 +25,8 @@ ENV PATH="/etc/openvpn/easy-rsa:${PATH}"
 ENV EASYRSA=/etc/openvpn/easy-rsa
 ENV EASYRSA_PKI=/etc/openvpn/easy-rsa/pki
 
-# Switch to non-root user
-USER appuser
-
-# Expose port
+# Expose app port
 EXPOSE 8000
 
-# Command to run the application
+# Run the app with Gunicorn
 CMD ["gunicorn", "--config", "gunicorn_config.py", "app:app"]
