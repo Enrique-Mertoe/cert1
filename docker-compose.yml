@@ -24,8 +24,6 @@ services:
       - /etc/openvpn:/etc/openvpn
       - /var/log/openvpn:/var/log/openvpn
       - /var/www/templates:/var/www/templates
-    networks:
-      - app-network
 
   redis:
     image: redis:7-alpine
@@ -58,8 +56,6 @@ services:
       - /etc/openvpn:/etc/openvpn
       - /var/log/openvpn:/var/log/openvpn
       - /var/www/templates:/var/www/templates
-    networks:
-      - app-network
 
 networks:
   app-network:
