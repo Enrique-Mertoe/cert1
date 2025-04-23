@@ -4,6 +4,7 @@ services:
   web:
     build: .
     user: "0:0"
+    network_mode: "host"
     ports:
       - "8100:8100"
     extra_hosts:
@@ -22,6 +23,7 @@ services:
       - .:/app
       - /etc/openvpn:/etc/openvpn
       - /tmp/openvpn:/tmp/openvpn
+      - /etc/openvpn/server/easy-rsa:/etc/openvpn/server/easy-rsa
       - /var/log/openvpn:/var/log/openvpn
       - /var/www/templates:/var/www/templates
     networks:
@@ -39,6 +41,7 @@ services:
     build: .
     command: celery -A tasks worker --loglevel=info
     user: "0:0"  # Also run as root
+    network_mode: "host"
     environment:
       - FLASK_ENV=production
       - REDIS_URL=redis://redis:6379/0
@@ -53,6 +56,7 @@ services:
     volumes:
       - .:/app
       - /etc/openvpn:/etc/openvpn
+      - /etc/openvpn/server/easy-rsa:/etc/openvpn/server/easy-rsa
       - /var/www/templates:/var/www/templates
     networks:
       - app-network
