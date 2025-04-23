@@ -90,8 +90,15 @@ class OpenVPNManager:
             # Generate client certificates
             print(f"Creating client '{sanitized_client}'...")
             subprocess.run(
-                f"sudo {self.easy_rsa_dir}/easyrsa --batch --days=3650 build-client-full '{sanitized_client}' nopass",
-                shell=True, check=True
+                [
+                    f"{self.easy_rsa_dir}/easyrsa",
+                    "--batch",
+                    "--days=3650",
+                    "build-client-full",
+                    sanitized_client,
+                    "nopass"
+                ],
+                check=True
             )
 
             # Generate client config file
